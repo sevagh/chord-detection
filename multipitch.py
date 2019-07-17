@@ -5,7 +5,7 @@ import sys
 
 
 if __name__ == '__main__':
-    x, sacf, esacf = multipitch_esacf(sys.argv[1])
+    x, sacf, esacf, interesting = multipitch_esacf(sys.argv[1])
     samples = numpy.arange(len(x))
 
     fig1, (ax1, ax2) = plt.subplots(2, 1)

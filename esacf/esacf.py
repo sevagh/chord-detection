@@ -5,10 +5,17 @@ import librosa
 from .wfir import wfir
 
 
-def multipitch_esacf(audio_file_path: str):
+def multipitch_esacf(audio_file_path: str, ham=None, k=None):
     x, fs = librosa.load(audio_file_path)
 
-    # first, the 12th-order warped linear prediction filter
+    # first, the 23.2ms hamming window
+    ham_samples = int(fs*0.0464)
+    diff = len(x) - ham_samples
+    x = x * numpy.concatenate(
+            (scipy.signal.hamming(ham_samples),
+            numpy.zeros(diff)))
+
+    # then, the 12th-order warped linear prediction filter
     x = wfir(x, fs, 12)
 
     x_highpass = highpass_filter(x.copy(), fs)
@@ -20,11 +27,12 @@ def multipitch_esacf(audio_file_path: str):
     x_sacf = sacf(x_lowpass, x_highpass)
     x_esacf = esacf(x_sacf)
 
-    return x, x_sacf, x_esacf
+    return x, x_sacf, x_esacf, ham_samples
 
 
-def sacf(x_low: numpy.ndarray, x_high: numpy.ndarray) -> numpy.ndarray:
-    k = 0.67
+def sacf(x_low: numpy.ndarray, x_high: numpy.ndarray, k=None) -> numpy.ndarray:
+    if not k:
+        k = 0.67
     left = numpy.abs(numpy.fft.fft(x_low))**k
     right = numpy.abs(numpy.fft.fft(x_high))**k
     x2 = numpy.fft.ifft(left + right)
@@ -58,7 +66,7 @@ def highpass_filter(x: numpy.ndarray, fs: float) -> numpy.ndarray:
 Paper says:
     The lowpass block also includes a highpass rolloff with 12 dB/octave below 70 Hz.
 
-    Still TODO
+    Still TODO?
 '''
 def lowpass_filter(x: numpy.ndarray, fs: float) -> numpy.ndarray:
     b, a = scipy.signal.butter(2, [1000/(fs/2)], btype='low')
