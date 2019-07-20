@@ -3,9 +3,10 @@ import scipy
 import scipy.signal
 import librosa
 import matplotlib.pyplot as plt
-from .multipitch import Multipitch
+from .multipitch import Multipitch, Chromagram
 from .wfir import wfir
 from .notes import freq_to_note, NOTE_NAMES
+from collections import OrderedDict
 
 
 class MultipitchESACF(Multipitch):
@@ -46,12 +47,14 @@ class MultipitchESACF(Multipitch):
         ]
         normalized_peak_prominences = peak_prominence / numpy.max(peak_prominence)
 
-        chromagram = {n: 0 for n in NOTE_NAMES}
+        chromagram = Chromagram()
+
         for i in max_peak_prominences:
             pitch = self.fs / peaks[i]
             note = freq_to_note(pitch)
             chromagram[note] += normalized_peak_prominences[i]
 
+        chromagram.normalize()
         return chromagram
 
     def display_plots(self):

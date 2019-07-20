@@ -1,6 +1,5 @@
-from chord_detection import MultipitchESACF
+from chord_detection import MultipitchESACF, MultipitchHarmonicEnergy
 import sys
-import pprint
 import argparse
 
 
@@ -23,16 +22,19 @@ if __name__ == "__main__":
     parser.add_argument("input_path", help="Path to WAV audio clip")
     args = parser.parse_args()
 
-    esacf = MultipitchESACF(args.input_path)
+    compute_obj = None
 
     if args.method == 1:
         print("Using method 1 - ESACF+chromagram")
-
-        chromagram = esacf.compute_pitches()
-        pp = pprint.PrettyPrinter(indent=4)
-        pp.pprint(chromagram)
-
-        if args.display_plots:
-            esacf.display_plots()
+        compute_obj = MultipitchESACF(args.input_path)
+    elif args.method == 2:
+        print("Using method 2 - harmonic energy")
+        compute_obj = MultipitchHarmonicEnergy(args.input_path)
     else:
         raise ValueError("valid methods: 1")
+
+    chromagram = compute_obj.compute_pitches()
+    print(chromagram)
+
+    if args.display_plots:
+        compute_obj.display_plots()
