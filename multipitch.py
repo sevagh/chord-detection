@@ -10,7 +10,10 @@ if __name__ == "__main__":
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
 
-    parser.add_argument("-k", "--key", help="estimate the key of input audio clip")
+    parser.add_argument("--key", help="estimate the key of input audio clip")
+    parser.add_argument(
+        "--bitstring", action="store_true", help="emit a 12-note chromagram bitstring"
+    )
     parser.add_argument(
         "--method", type=int, help="choose the method (see the README)", default=1
     )
@@ -34,7 +37,10 @@ if __name__ == "__main__":
         raise ValueError("valid methods: 1")
 
     chromagram = compute_obj.compute_pitches()
-    print(chromagram)
+    if args.bitstring:
+        print(chromagram.pack())
+    else:
+        print(chromagram)
 
     if args.display_plots:
         compute_obj.display_plots()

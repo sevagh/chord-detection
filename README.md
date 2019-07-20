@@ -40,15 +40,47 @@ Use the list numbering (e.g. ESACF = 1) as values for the `--method` argument.
 
 ### Results
 
-To make the results readable, we round the normalized chromagram floats (0.0 <= cf <= 1.0) to a bit (0, 1).
+To make the results readable, we used the `--bitstring` flag to round the normalized chromagram floats (0.0 <= cf <= 1.0) to a bit (0, 1). This is a very unscientific/quick'n'dirty test with random WAV files I had lying around. The instruments may be out of tune, my determination of "correctness" might be wrong. Also, chord detection is a hard problem.
 
-Gmaj7 acoustic guitar
+Gmaj7 acoustic guitar:
 
-|                  | C | C# | D | D# | E | F | F#  | G | G# | A | A# | B |
-| ---------------- | - | -- | - | -- | - | - | --  | - | -- | - | -- | - |
-| Correct          |   |    | 1 |    |   |   | 1   | 1 |    |   |    | 1 |
-| ESACF            | 1 |    | 1 |    |   |   |     | 1 |    |   |    |   |
-| harmonic energy  |   |    | 1 |    |   |   | 1   | 1 |    |   |    |   |
+|                  | C-C#-D-D#-E-F-F#-G-G#-A-A#-B |
+| ---------------- | ------------ |
+| Correct          | 001000110001 |
+| ESACF            | 101000010010 |
+| harmonic energy  | 001000100000 |
+
+Fmajor3 piano:
+
+|                  | C-C#-D-D#-E-F-F#-G-G#-A-A#-B |
+| ---------------- | ------------ |
+| Correct          | 100010000100 |
+| ESACF            | 010001101100 |
+| harmonic energy  | 101001110110 |
+
+Dmajor acoustic guitar:
+
+|                  | C-C#-D-D#-E-F-F#-G-G#-A-A#-B |
+| ---------------- | ------------ |
+| Correct          | 001000100100 |
+| ESACF            | 010100101000 |
+| harmonic energy  | 011000100100 |
+
+C acoustic guitar:
+
+|                  | C-C#-D-D#-E-F-F#-G-G#-A-A#-B |
+| ---------------- | ------------ |
+| Correct          | 100010010001 |
+| ESACF            | 010000000100 |
+| harmonic energy  | 101000011001 |
+
+C piano:
+
+|                  | C-C#-D-D#-E-F-F#-G-G#-A-A#-B |
+| ---------------- | ------------ |
+| Correct          | 100010010000 |
+| ESACF            | 101001001000 |
+| harmonic energy  | 100000000000 |
 
 ### References
 
