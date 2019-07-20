@@ -14,3 +14,8 @@ def freq_to_note(freq, append_octave=False):
     if append_octave:
         ret += str(octave)
     return ret
+
+
+def gen_octave(c_initial_hz):
+    for p in range(12):
+        yield c_initial_hz * (2.0 ** (p / 12))
