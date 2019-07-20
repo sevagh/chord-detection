@@ -1,6 +1,5 @@
 from chord_detection import MultipitchESACF, MultipitchHarmonicEnergy
 import sys
-import pprint
 import argparse
 
 
@@ -35,8 +34,7 @@ if __name__ == "__main__":
         raise ValueError("valid methods: 1")
 
     chromagram = compute_obj.compute_pitches()
-    pp = pprint.PrettyPrinter(indent=4)
-    pp.pprint(chromagram)
+    print(chromagram)
 
     if args.display_plots:
         compute_obj.display_plots()

@@ -4,7 +4,7 @@ import scipy.signal
 import librosa
 from numba import jit
 import matplotlib.pyplot as plt
-from .multipitch import Multipitch
+from .multipitch import Multipitch, Chromagram
 from .notes import freq_to_note, gen_octave, NOTE_NAMES
 from collections import OrderedDict
 
@@ -32,11 +32,7 @@ class MultipitchHarmonicEnergy(Multipitch):
 
         # chroma vector calculation
         Cn = [0.0] * 12
-
-        # my own interpretation - the chromagram
-        chromagram = OrderedDict()
-        for n in NOTE_NAMES:
-            chromagram[n] = 0.0
+        chromagram = Chromagram()
 
         # first C = C3 aka 130.81 Hz
         notes = list(gen_octave(130.81))
@@ -48,7 +44,7 @@ class MultipitchHarmonicEnergy(Multipitch):
             for octave in range(1, self.num_octave + 1):
                 note_sum = 0.0
                 for harmonic in range(1, self.num_harmonic + 1):
-                    x_dft_max = float('-inf') # sentinel
+                    x_dft_max = float("-inf")  # sentinel
 
                     k_prime = numpy.round(
                         (notes[n] * octave * harmonic) / divisor_ratio
@@ -62,13 +58,9 @@ class MultipitchHarmonicEnergy(Multipitch):
                     note_sum += x_dft_max * (1.0 / harmonic)
                 chroma_sum += note_sum
             Cn[n] += chroma_sum
-            chromagram[NOTE_NAMES[n]] = Cn[n]
+            chromagram[n] = Cn[n]
 
-        # normalize the chromagram
-        chromagram_max = max(chromagram.values())
-        for k in chromagram.keys():
-            chromagram[k] = chromagram[k] / chromagram_max
-
+        chromagram.normalize()
         return chromagram
 
     def display_plots(self):
