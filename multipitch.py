@@ -1,4 +1,8 @@
-from chord_detection import MultipitchESACF, MultipitchHarmonicEnergy, MultipitchIterativeF0
+from chord_detection import (
+    MultipitchESACF,
+    MultipitchHarmonicEnergy,
+    MultipitchIterativeF0,
+)
 import sys
 import argparse
 
@@ -13,6 +17,11 @@ if __name__ == "__main__":
     parser.add_argument("--key", help="estimate the key of input audio clip")
     parser.add_argument(
         "--bitstring", action="store_true", help="emit a 12-note chromagram bitstring"
+    )
+    parser.add_argument(
+        "--displayplots",
+        action="store_true",
+        help="display intermediate plots with matplotlib",
     )
     parser.add_argument(
         "--method", type=int, help="choose the method (see the README)", default=1
@@ -39,3 +48,6 @@ if __name__ == "__main__":
         print(chromagram.pack())
     else:
         print(chromagram)
+
+    if args.displayplots:
+        compute_obj.display_plots()

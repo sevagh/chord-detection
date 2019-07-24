@@ -2,6 +2,7 @@ import numpy
 import scipy
 import scipy.signal
 import librosa
+import typing
 import matplotlib.pyplot as plt
 from .multipitch import Multipitch, Chromagram
 from .wfir import wfir
@@ -10,12 +11,11 @@ from collections import OrderedDict
 
 
 class MultipitchESACF(Multipitch):
-    def __init__(self, audio_path, ham_ms=46.4, k=0.67, n_notes=12, n_peaks_elim=5):
+    def __init__(self, audio_path, ham_ms=46.4, k=0.67, n_peaks_elim=5):
         super().__init__(audio_path)
         self.ham_samples = int(self.fs * ham_ms / 1000.0)
         self.k = k
         self.n_peaks_elim = n_peaks_elim
-        self.n_notes = n_notes
 
     def compute_pitches(self):
         diff = len(self.x) - self.ham_samples
@@ -32,8 +32,10 @@ class MultipitchESACF(Multipitch):
 
         x_lowpass = lowpass_filter(self.x.copy(), self.fs, 1000)
 
-        self.x_sacf = _sacf(x_lowpass, x_highpass)
+        self.x_sacf = sacf([x_lowpass, x_highpass])
+        print(self.x_sacf)
         self.x_esacf = _esacf(self.x_sacf, self.n_peaks_elim)
+        print(self.x_esacf)
 
         # the data that's actually interesting
         self.interesting = self.ham_samples
@@ -42,29 +44,69 @@ class MultipitchESACF(Multipitch):
             self.x_esacf[: self.interesting], peaks
         )
 
-        max_peak_prominences = numpy.argpartition(peak_prominence, -self.n_notes)[
-            -self.n_notes :
-        ]
-        normalized_peak_prominences = peak_prominence / numpy.max(peak_prominence)
-
+        max_peak_prominences = numpy.argpartition(peak_prominence, -12)[-12:]
         chromagram = Chromagram()
 
         for i in max_peak_prominences:
             pitch = self.fs / peaks[i]
             note = freq_to_note(pitch)
-            chromagram[note] += normalized_peak_prominences[i]
+            chromagram[note] += peak_prominence[i]
 
         chromagram.normalize()
         return chromagram
 
+    def display_plots(self):
+        samples = numpy.arange(self.interesting)
 
-def _sacf(x_low: numpy.ndarray, x_high: numpy.ndarray, k=None) -> numpy.ndarray:
+        fig1, (ax1, ax2) = plt.subplots(2, 1)
+
+        ax1.set_title("x[n] - {0}".format(self.clip_name))
+        ax1.set_xlabel("n (samples)")
+        ax1.set_ylabel("amplitude")
+        ax1.plot(samples, self.x[: self.interesting], "b", alpha=0.8, label="x[n]")
+        ax1.grid()
+        ax1.legend(loc="upper right")
+
+        ax2.set_title("SACF, ESACF")
+        ax2.set_xlabel("n (samples)")
+        ax2.set_ylabel("amplitude")
+        ax2.plot(
+            samples,
+            self.x_sacf[: self.interesting],
+            "g",
+            linestyle="--",
+            alpha=0.5,
+            label="sacf",
+        )
+        ax2.plot(
+            samples,
+            self.x_esacf[: self.interesting],
+            "b",
+            linestyle=":",
+            alpha=0.5,
+            label="esacf",
+        )
+
+        ax2.grid()
+        ax2.legend(loc="upper right")
+
+        plt.axis("tight")
+        fig1.tight_layout()
+        plt.show()
+
+
+def sacf(x_channels: typing.List[numpy.ndarray], k=None) -> numpy.ndarray:
+    # k is same as p (power) in the Klapuri/Ansi paper
     if not k:
         k = 0.67
-    left = numpy.abs(numpy.fft.fft(x_low)) ** k
-    right = numpy.abs(numpy.fft.fft(x_high)) ** k
-    x2 = numpy.fft.ifft(left + right)
-    return numpy.real(x2)
+
+    running_sum = numpy.zeros(x_channels[0].shape[0])
+
+    for xc in x_channels:
+        print(xc)
+        running_sum += numpy.abs(numpy.fft.fft(xc)) ** k
+
+    return numpy.real(numpy.fft.ifft(running_sum))
 
 
 def _esacf(x2: numpy.ndarray, n_peaks=10) -> numpy.ndarray:
