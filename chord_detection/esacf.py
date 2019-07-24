@@ -28,9 +28,9 @@ class MultipitchESACF(Multipitch):
 
         x_highpass = _highpass_filter(self.x.copy(), self.fs)
         x_highpass = numpy.clip(x_highpass, 0, None)  # half-wave rectification
-        x_highpass = _lowpass_filter(x_highpass, self.fs)  # paper wants it
+        x_highpass = lowpass_filter(x_highpass, self.fs, 1000)  # paper wants it
 
-        x_lowpass = _lowpass_filter(self.x.copy(), self.fs)
+        x_lowpass = lowpass_filter(self.x.copy(), self.fs, 1000)
 
         self.x_sacf = _sacf(x_lowpass, x_highpass)
         self.x_esacf = _esacf(self.x_sacf, self.n_peaks_elim)
@@ -56,45 +56,6 @@ class MultipitchESACF(Multipitch):
 
         chromagram.normalize()
         return chromagram
-
-    def display_plots(self):
-        samples = numpy.arange(self.interesting)
-
-        fig1, (ax1, ax2) = plt.subplots(2, 1)
-
-        ax1.set_title("x[n] - {0}".format(self.clip_name))
-        ax1.set_xlabel("n (samples)")
-        ax1.set_ylabel("amplitude")
-        ax1.plot(samples, self.x[: self.interesting], "b", alpha=0.8, label="x[n]")
-        ax1.grid()
-        ax1.legend(loc="upper right")
-
-        ax2.set_title("SACF, ESACF")
-        ax2.set_xlabel("n (samples)")
-        ax2.set_ylabel("amplitude")
-        ax2.plot(
-            samples,
-            self.x_sacf[: self.interesting],
-            "g",
-            linestyle="--",
-            alpha=0.5,
-            label="sacf",
-        )
-        ax2.plot(
-            samples,
-            self.x_esacf[: self.interesting],
-            "b",
-            linestyle=":",
-            alpha=0.5,
-            label="esacf",
-        )
-
-        ax2.grid()
-        ax2.legend(loc="upper right")
-
-        plt.axis("tight")
-        fig1.tight_layout()
-        plt.show()
 
 
 def _sacf(x_low: numpy.ndarray, x_high: numpy.ndarray, k=None) -> numpy.ndarray:
@@ -139,6 +100,6 @@ Paper says:
 """
 
 
-def _lowpass_filter(x: numpy.ndarray, fs: float) -> numpy.ndarray:
-    b, a = scipy.signal.butter(2, [1000 / (fs / 2)], btype="low")
+def lowpass_filter(x: numpy.ndarray, fs: float, band: float) -> numpy.ndarray:
+    b, a = scipy.signal.butter(2, [band / (fs / 2)], btype="low")
     return scipy.signal.lfilter(b, a, x)

@@ -1,4 +1,4 @@
-from chord_detection import MultipitchESACF, MultipitchHarmonicEnergy
+from chord_detection import MultipitchESACF, MultipitchHarmonicEnergy, MultipitchIterativeF0
 import sys
 import argparse
 
@@ -17,11 +17,6 @@ if __name__ == "__main__":
     parser.add_argument(
         "--method", type=int, help="choose the method (see the README)", default=1
     )
-    parser.add_argument(
-        "--display-plots",
-        action="store_true",
-        help="display matplotlib plots for method",
-    )
     parser.add_argument("input_path", help="Path to WAV audio clip")
     args = parser.parse_args()
 
@@ -33,14 +28,14 @@ if __name__ == "__main__":
     elif args.method == 2:
         print("Using method 2 - harmonic energy")
         compute_obj = MultipitchHarmonicEnergy(args.input_path)
+    elif args.method == 3:
+        print("Using method 3 - iterative f0")
+        compute_obj = MultipitchIterativeF0(args.input_path)
     else:
-        raise ValueError("valid methods: 1")
+        raise ValueError("valid methods: 1, 2, 3")
 
     chromagram = compute_obj.compute_pitches()
     if args.bitstring:
         print(chromagram.pack())
     else:
         print(chromagram)
-
-    if args.display_plots:
-        compute_obj.display_plots()
