@@ -2,7 +2,6 @@ import numpy
 import scipy
 import scipy.signal
 import librosa
-from numba import jit
 import matplotlib.pyplot as plt
 from .multipitch import Multipitch, Chromagram
 from .notes import freq_to_note, gen_octave, NOTE_NAMES
@@ -19,7 +18,9 @@ class MultipitchHarmonicEnergy(Multipitch):
         self.num_octave = num_octave
         self.num_bins = num_bins
 
-    @jit(nopython=False)
+    def display_name(self):
+        return "Harmonic Energy (Stark, Plumbley)"
+
     def compute_pitches(self):
         # first, signal frame
         x = self.x[: self.frame_size]

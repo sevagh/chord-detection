@@ -11,11 +11,14 @@ from collections import OrderedDict
 
 
 class MultipitchESACF(Multipitch):
-    def __init__(self, audio_path, ham_ms=46.4, k=0.67, n_peaks_elim=5):
+    def __init__(self, audio_path, ham_ms=46.4, k=0.67, n_peaks_elim=3):
         super().__init__(audio_path)
         self.ham_samples = int(self.fs * ham_ms / 1000.0)
         self.k = k
         self.n_peaks_elim = n_peaks_elim
+
+    def display_name(self):
+        return "ESACF (Tolonen, Karjalainen)"
 
     def compute_pitches(self):
         diff = len(self.x) - self.ham_samples
@@ -26,16 +29,14 @@ class MultipitchESACF(Multipitch):
         # then, the 12th-order warped linear prediction filter
         self.x = wfir(self.x, self.fs, 12)
 
-        x_highpass = _highpass_filter(self.x.copy(), self.fs)
-        x_highpass = numpy.clip(x_highpass, 0, None)  # half-wave rectification
-        x_highpass = lowpass_filter(x_highpass, self.fs, 1000)  # paper wants it
+        self.x_hi = _highpass_filter(self.x.copy(), self.fs)
+        self.x_hi = numpy.clip(self.x_hi, 0, None)  # half-wave rectification
+        self.x_hi = lowpass_filter(self.x_hi, self.fs, 1000)  # paper wants it
 
-        x_lowpass = lowpass_filter(self.x.copy(), self.fs, 1000)
+        self.x_lo = lowpass_filter(self.x.copy(), self.fs, 1000)
 
-        self.x_sacf = sacf([x_lowpass, x_highpass])
-        print(self.x_sacf)
+        self.x_sacf = sacf([self.x_lo, self.x_hi])
         self.x_esacf = _esacf(self.x_sacf, self.n_peaks_elim)
-        print(self.x_esacf)
 
         # the data that's actually interesting
         self.interesting = self.ham_samples
@@ -58,7 +59,7 @@ class MultipitchESACF(Multipitch):
     def display_plots(self):
         samples = numpy.arange(self.interesting)
 
-        fig1, (ax1, ax2) = plt.subplots(2, 1)
+        fig1, (ax1, ax2, ax3) = plt.subplots(3, 1)
 
         ax1.set_title("x[n] - {0}".format(self.clip_name))
         ax1.set_xlabel("n (samples)")
@@ -67,10 +68,30 @@ class MultipitchESACF(Multipitch):
         ax1.grid()
         ax1.legend(loc="upper right")
 
-        ax2.set_title("SACF, ESACF")
+        ax2.set_title("x[n] lo and hi".format(self.clip_name))
         ax2.set_xlabel("n (samples)")
         ax2.set_ylabel("amplitude")
         ax2.plot(
+            samples,
+            self.x_lo[: self.interesting],
+            "b",
+            alpha=0.8,
+            label="x[n] 1kHz lowpass",
+        )
+        ax2.plot(
+            samples,
+            self.x_hi[: self.interesting],
+            "r",
+            alpha=0.8,
+            label="x[n] 1kHz highpass",
+        )
+        ax2.grid()
+        ax2.legend(loc="upper right")
+
+        ax3.set_title("SACF, ESACF")
+        ax3.set_xlabel("n (samples)")
+        ax3.set_ylabel("amplitude")
+        ax3.plot(
             samples,
             self.x_sacf[: self.interesting],
             "g",
@@ -78,7 +99,7 @@ class MultipitchESACF(Multipitch):
             alpha=0.5,
             label="sacf",
         )
-        ax2.plot(
+        ax3.plot(
             samples,
             self.x_esacf[: self.interesting],
             "b",
@@ -87,8 +108,8 @@ class MultipitchESACF(Multipitch):
             label="esacf",
         )
 
-        ax2.grid()
-        ax2.legend(loc="upper right")
+        ax3.grid()
+        ax3.legend(loc="upper right")
 
         plt.axis("tight")
         fig1.tight_layout()
@@ -103,13 +124,12 @@ def sacf(x_channels: typing.List[numpy.ndarray], k=None) -> numpy.ndarray:
     running_sum = numpy.zeros(x_channels[0].shape[0])
 
     for xc in x_channels:
-        print(xc)
         running_sum += numpy.abs(numpy.fft.fft(xc)) ** k
 
     return numpy.real(numpy.fft.ifft(running_sum))
 
 
-def _esacf(x2: numpy.ndarray, n_peaks=10) -> numpy.ndarray:
+def _esacf(x2: numpy.ndarray, n_peaks: int) -> numpy.ndarray:
     """
     enhance the SACF with the following procedure
     clip to positive values, time stretch by n_peaks
@@ -119,10 +139,9 @@ def _esacf(x2: numpy.ndarray, n_peaks=10) -> numpy.ndarray:
 
     for timescale in range(2, n_peaks + 1):
         x2tmp = numpy.clip(x2tmp, 0, None)
-        x2stretched = librosa.effects.time_stretch(x2tmp, timescale)
-        x2stretched = numpy.pad(
-            x2stretched, (0, x2tmp.shape[0] - x2stretched.shape[0]), "constant"
-        )
+        x2stretched = librosa.effects.time_stretch(x2tmp, timescale).copy()
+
+        x2stretched.resize(x2tmp.shape)
         x2tmp -= x2stretched
         x2tmp = numpy.clip(x2tmp, 0, None)
 

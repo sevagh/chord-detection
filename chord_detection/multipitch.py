@@ -25,6 +25,10 @@ class Multipitch(ABC):
     def display_plots(self):
         pass
 
+    @abstractmethod
+    def display_name(self):
+        pass
+
 
 class Chromagram(Sequence):
     def __init__(self):

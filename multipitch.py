@@ -29,25 +29,29 @@ if __name__ == "__main__":
     parser.add_argument("input_path", help="Path to WAV audio clip")
     args = parser.parse_args()
 
-    compute_obj = None
+    compute_objs = []
 
     if args.method == 1:
-        print("Using method 1 - ESACF+chromagram")
-        compute_obj = MultipitchESACF(args.input_path)
+        compute_objs.append(MultipitchESACF(args.input_path))
     elif args.method == 2:
-        print("Using method 2 - harmonic energy")
-        compute_obj = MultipitchHarmonicEnergy(args.input_path)
+        compute_objs.append(MultipitchHarmonicEnergy(args.input_path))
     elif args.method == 3:
-        print("Using method 3 - iterative f0")
-        compute_obj = MultipitchIterativeF0(args.input_path)
+        compute_objs.append(MultipitchIterativeF0(args.input_path))
+    elif args.method == -1:
+        compute_objs.append(MultipitchESACF(args.input_path))
+        compute_objs.append(MultipitchHarmonicEnergy(args.input_path))
+        compute_objs.append(MultipitchIterativeF0(args.input_path))
     else:
-        raise ValueError("valid methods: 1, 2, 3")
+        raise ValueError("valid methods: -1 (all), 1, 2, 3")
 
-    chromagram = compute_obj.compute_pitches()
-    if args.bitstring:
-        print(chromagram.pack())
-    else:
-        print(chromagram)
+    for compute_obj in compute_objs:
+        print(compute_obj.display_name())
 
-    if args.displayplots:
-        compute_obj.display_plots()
+        chromagram = compute_obj.compute_pitches()
+        if args.bitstring:
+            print(chromagram.pack())
+        else:
+            print(chromagram)
+
+        if args.displayplots:
+            compute_obj.display_plots()
