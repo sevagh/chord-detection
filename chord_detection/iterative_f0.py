@@ -4,6 +4,7 @@ import random
 import scipy
 import scipy.signal
 import scipy.fftpack
+import peakutils
 import librosa
 import matplotlib.pyplot as plt
 from .multipitch import Multipitch, Chromagram
@@ -17,11 +18,13 @@ class MultipitchIterativeF0(Multipitch):
     def __init__(
         self,
         audio_path,
-        frame_size=8192,
-        power=1,
+        frame_size=2 * 8192,
+        power=0.67,
         channels=70,
         epsilon0=2.3,
         epsilon1=0.39,
+        peak_thresh=0.5,
+        peak_min_dist=10,
     ):
         super().__init__(audio_path)
         self.frame_size = frame_size
@@ -35,6 +38,8 @@ class MultipitchIterativeF0(Multipitch):
             229 * (10 ** ((epsilon1 * c + epsilon0) / 21.4) - 1)
             for c in range(channels)
         ]
+        self.peak_thresh = peak_thresh
+        self.peak_min_dist = peak_min_dist
 
     def display_name(self):
         return "Iterative F0 (Klapuri, Anssi)"
@@ -73,16 +78,20 @@ class MultipitchIterativeF0(Multipitch):
         chromagram = Chromagram()
 
         for frame, U in enumerate(self.Ut):
-            peaks, _ = scipy.signal.find_peaks(U)
-            peak_prominence, _, _ = scipy.signal.peak_prominences(U, peaks)
+            peak_indices = peakutils.indexes(
+                U, thres=self.peak_thresh, min_dist=self.peak_min_dist
+            )
+            print(peak_indices)
 
-            max_peak_prominences = numpy.argpartition(peak_prominence, -1)[-1:]
-
-            for i in max_peak_prominences:
-                pitch = self.fs / peaks[i]
+            peak_indices_interp = peakutils.interpolate(
+                numpy.arange(U.shape[0]), U, ind=peak_indices
+            )
+            for i, tau in enumerate(peak_indices_interp):
+                pitch = self.fs / tau
                 note = freq_to_note(pitch)
-                chromagram[note] += peak_prominence[i]
+                chromagram[note] += U[peak_indices[i]]
 
+        print(chromagram)
         chromagram.normalize()
         return chromagram
 

@@ -24,7 +24,10 @@ if __name__ == "__main__":
         help="display intermediate plots with matplotlib",
     )
     parser.add_argument(
-        "--method", type=int, help="choose the method (see the README)", default=1
+        "--method",
+        type=int,
+        help="-1 = all, 1 = ESACF, 2 = Harmonic Energy, 3 = Iterative F0",
+        default=1,
     )
     parser.add_argument("input_path", help="Path to WAV audio clip")
     args = parser.parse_args()

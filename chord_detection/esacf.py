@@ -12,11 +12,21 @@ from collections import OrderedDict
 
 
 class MultipitchESACF(Multipitch):
-    def __init__(self, audio_path, ham_ms=46.4, k=0.67, n_peaks_elim=6):
+    def __init__(
+        self,
+        audio_path,
+        ham_ms=46.4,
+        k=0.67,
+        n_peaks_elim=6,
+        peak_thresh=0.5,
+        peak_min_dist=10,
+    ):
         super().__init__(audio_path)
         self.ham_samples = int(self.fs * ham_ms / 1000.0)
         self.k = k
         self.n_peaks_elim = n_peaks_elim
+        self.peak_thresh = peak_thresh
+        self.peak_min_dist = peak_min_dist
 
     def display_name(self):
         return "ESACF (Tolonen, Karjalainen)"
@@ -37,13 +47,17 @@ class MultipitchESACF(Multipitch):
         self.x_lo = lowpass_filter(self.x.copy(), self.fs, 1000)
 
         self.x_sacf = sacf([self.x_lo, self.x_hi])
-        self.x_esacf, self.harmonic_elim_plots = _esacf(self.x_sacf, self.n_peaks_elim)
+        self.x_esacf, self.harmonic_elim_plots = esacf(
+            self.x_sacf, self.n_peaks_elim, True
+        )
 
         # the data that's actually interesting
         self.interesting = self.ham_samples
 
         x_esacf_ = self.x_esacf[: self.interesting]
-        self.peak_indices = peakutils.indexes(x_esacf_, thres=0.5, min_dist=100)
+        self.peak_indices = peakutils.indexes(
+            x_esacf_, thres=self.peak_thresh, min_dist=self.peak_min_dist
+        )
 
         self.peak_indices_interp = peakutils.interpolate(
             numpy.arange(self.interesting), x_esacf_, ind=self.peak_indices
@@ -53,7 +67,7 @@ class MultipitchESACF(Multipitch):
         for i, tau in enumerate(self.peak_indices_interp):
             pitch = self.fs / tau
             note = freq_to_note(pitch)
-            chromagram[note] = x_esacf_[self.peak_indices[i]]
+            chromagram[note] += x_esacf_[self.peak_indices[i]]
         chromagram.normalize()
         return chromagram
 
@@ -151,8 +165,8 @@ def sacf(x_channels: typing.List[numpy.ndarray], k=None) -> numpy.ndarray:
     return numpy.real(numpy.fft.ifft(running_sum))
 
 
-def _esacf(
-    x2: numpy.ndarray, n_peaks: int
+def esacf(
+    x2: numpy.ndarray, n_peaks: int, ret_plots: bool
 ) -> typing.Tuple[numpy.ndarray, typing.List[numpy.ndarray]]:
     """
     enhance the SACF with the following procedure
@@ -167,7 +181,8 @@ def _esacf(
         x2stretched = librosa.effects.time_stretch(x2tmp, timescale).copy()
 
         x2stretched.resize(x2tmp.shape)
-        to_plot.append(x2stretched)
+        if ret_plots:
+            to_plot.append(x2stretched)
         x2tmp -= x2stretched
         x2tmp = numpy.clip(x2tmp, 0, None)
 

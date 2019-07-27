@@ -61,6 +61,8 @@ class Chromagram(Sequence):
 
     def normalize(self):
         chromagram_max = max(self.c.values())
+        if chromagram_max == 0.0:
+            return
 
         for k in self.c.keys():
             self.c[k] = round(self.c[k] / chromagram_max, 3)
