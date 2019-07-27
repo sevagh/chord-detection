@@ -18,13 +18,14 @@ class MultipitchIterativeF0(Multipitch):
     def __init__(
         self,
         audio_path,
-        frame_size=2 * 8192,
+        frame_size=8192,
         power=0.67,
         channels=70,
         epsilon0=2.3,
         epsilon1=0.39,
         peak_thresh=0.5,
         peak_min_dist=10,
+        harmonic_multiples_elim=10,
     ):
         super().__init__(audio_path)
         self.frame_size = frame_size
@@ -40,19 +41,18 @@ class MultipitchIterativeF0(Multipitch):
         ]
         self.peak_thresh = peak_thresh
         self.peak_min_dist = peak_min_dist
-        self.rand_channels = {}
-        for i in range(5):
-            chosen_idx = random.randrange(0, len(self.channels))
-            self.rand_channels[chosen_idx] = {'fc': self.channels[chosen_idx], 'x_haf': None}
+        self.harmonic_multiples_elim = harmonic_multiples_elim
 
     def display_name(self):
-        return "Iterative F0 (Klapuri, Anssi)"
+        return "[INCOMPLETE] Iterative F0 (Klapuri, Anssi)"
 
     def compute_pitches(self):
         self.yc = []
 
         for i, fc in enumerate(self.channels):
-            yc = _auditory_filterbank(self.x, self.fs, fc)
+            yc = self.x[: self.frame_size]
+
+            yc = _auditory_filterbank(yc, self.fs, fc)
 
             yc = wfir(yc, self.fs, 12)  # dynamic level compression
             yc[yc < 0] = -yc[yc < 0]  # full-wave rectification
@@ -61,56 +61,74 @@ class MultipitchIterativeF0(Multipitch):
                 yc + lowpass_filter(yc, self.fs, fc)
             ) / 2.0  # sum with low-pass filtered version of self at center-channel frequency
 
-            yc *= scipy.signal.hamming(self.x.shape[0])
-            if i in self.rand_channels:
-                self.rand_channels[i]['x_haf'] = yc.copy()
+            yc = numpy.append(
+                yc * scipy.signal.hamming(self.frame_size), numpy.zeros(self.frame_size)
+            )
+
             self.yc.append(yc)
 
+        # while method 1/ESACF uses time stretching to eliminate harmonics, here we'll be iteratively eliminating the dominant f0?
         self.Ut = sacf(self.yc, k=self.power)
 
         chromagram = Chromagram()
 
-        peak_indices = peakutils.indexes(
-            self.Ut, thres=self.peak_thresh, min_dist=self.peak_min_dist
-        )
+        while True:
+            peak_indices = peakutils.indexes(
+                self.Ut, thres=self.peak_thresh, min_dist=self.peak_min_dist
+            )
 
-        peak_indices_interp = peakutils.interpolate(
-            numpy.arange(self.Ut.shape[0]), self.Ut, ind=peak_indices
-        )
-        for i, tau in enumerate(peak_indices_interp):
-            pitch = self.fs / tau
-            note = freq_to_note(pitch)
-            chromagram[note] += self.Ut[peak_indices[i]]
+            chosen_tau = None
+            if len(peak_indices) > 0:
+                peak_indices_interp = peakutils.interpolate(
+                    numpy.arange(self.Ut.shape[0]), self.Ut, ind=peak_indices
+                )
+                chosen_tau = peak_indices_interp[0]
+                real_tau = peak_indices[0]
+
+                pitch = self.fs / chosen_tau
+                note = freq_to_note(pitch)
+                chromagram[note] += self.Ut[real_tau]
+                for i in range(1, self.harmonic_multiples_elim):
+                    index = i * real_tau
+                    if index > self.Ut.shape[0]:
+                        break
+
+                    # eliminate harmonic multiples of the same f0
+                    self.Ut[index] -= self.Ut[index]
+            else:
+                break
 
         chromagram.normalize()
         return chromagram
 
     def display_plots(self):
-        plot_len = min(self.Ut.shape[0], self.x.shape[0])
-        samples = numpy.arange(plot_len)
-
-        fig1, (ax1, ax2, ax3) = plt.subplots(3, 1)
-        i = 0
+        fig1, (ax1, ax2) = plt.subplots(2, 1)
 
         ax1.set_title("x[n] - {0}".format(self.clip_name))
         ax1.set_xlabel("n (samples)")
         ax1.set_ylabel("amplitude")
-        ax1.plot(samples, self.x[:plot_len], "C{0}".format(i), alpha=0.75, linestyle='--', label="x[n]")
-        for x, dct in self.rand_channels.items():
-            ax1.plot(samples, dct['x_haf'][:plot_len], "C{0}".format(i), alpha=0.75, linestyle=':', label="x[n] auditory filterbank, {0}Hz".format(dct['fc']))
-            i += 1
+        ax1.plot(
+            numpy.arange(self.frame_size),
+            self.x[: self.frame_size],
+            "b",
+            alpha=0.75,
+            linestyle="--",
+            label="x[n]",
+        )
+
         ax1.grid()
         ax1.legend(loc="upper right")
 
-        ax2.set_title("yc by channel (randomly selected)")
+        ax2.set_title(r"$y_c$[n], auditory filterbank")
         ax2.set_xlabel("n (samples)")
         ax2.set_ylabel("amplitude")
 
-        for x in self.rand_channels:
-            xaxis = int(self.x.shape[0])
+        for i, x in enumerate(
+            [random.randrange(0, len(self.channels)) for _ in range(10)]
+        ):
             ax2.plot(
-                numpy.arange(xaxis),
-                self.yc[x][:xaxis],
+                numpy.arange(self.frame_size),
+                self.yc[x][: self.frame_size],
                 color="C{0}".format(i),
                 linestyle="--",
                 alpha=0.5,
@@ -121,18 +139,6 @@ class MultipitchIterativeF0(Multipitch):
         ax2.grid()
         ax2.legend(loc="upper right")
 
-        ax3.set_title("Ut")
-        ax3.set_xlabel("n (samples)")
-        ax3.set_ylabel("|amplitude|^p")
-        ax3.plot(
-            samples, self.Ut[:plot_len], "g", linestyle="--", alpha=0.5, label="Ut"
-        )
-
-        ax3.grid()
-        ax3.legend(loc="upper right")
-
-        plt.axis("tight")
-        fig1.tight_layout()
         plt.show()
 
 
