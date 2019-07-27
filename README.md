@@ -17,7 +17,7 @@ Run outside of Docker (e.g. for displaying matplotlib plots with `--displayplots
 
 ### Methods
 
-#### ESACF
+#### ESACF (Tolonen, Karjalainen)
 
 ![esacf](.github/esacf_demo.png)
 
@@ -25,12 +25,12 @@ _T. Tolonen and M. Karjalainen, "A computationally efficient multipitch analysis
 
 _V. Zenz and A. Rauber, "Automatic Chord Detection Incorporating Beat and Key Detection," 2007 IEEE International Conference on Signal Processing and Communications, Dubai, 2007, pp. 1175-1178._
 
-#### Harmonic energy chromagram ([3])
+#### Harmonic Energy (Stark, Plumbley)
 
 ![harmeng](.github/harmeng_demo.png)
 
 _M Stark, Adam and Plumbley, Mark., "Real-Time Chord Recognition for Live Performance," in Proceedings of the 2009 International Computer Music Conference (ICMC 2009), Montreal, Canada, 16-21 August 2009._
 
-#### Iterative F0 ([4])
+#### Iterative F0 (Klapuri, Anssi)
 
 _Klapuri, Anssi, "Multipitch Analysis of Polyphonic Music and Speech Signals Using an Auditory Model," IEEE TRANSACTIONS ON AUDIO, SPEECH, AND LANGUAGE PROCESSING, VOL. 16, NO. 2, FEBRUARY 2008 255._
