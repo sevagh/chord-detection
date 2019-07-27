@@ -3,6 +3,7 @@ import scipy
 import scipy.signal
 import librosa
 import typing
+import peakutils
 import matplotlib.pyplot as plt
 from .multipitch import Multipitch, Chromagram
 from .wfir import wfir
@@ -11,7 +12,7 @@ from collections import OrderedDict
 
 
 class MultipitchESACF(Multipitch):
-    def __init__(self, audio_path, ham_ms=46.4, k=0.67, n_peaks_elim=3):
+    def __init__(self, audio_path, ham_ms=46.4, k=0.67, n_peaks_elim=6):
         super().__init__(audio_path)
         self.ham_samples = int(self.fs * ham_ms / 1000.0)
         self.k = k
@@ -36,83 +37,104 @@ class MultipitchESACF(Multipitch):
         self.x_lo = lowpass_filter(self.x.copy(), self.fs, 1000)
 
         self.x_sacf = sacf([self.x_lo, self.x_hi])
-        self.x_esacf = _esacf(self.x_sacf, self.n_peaks_elim)
+        self.x_esacf, self.harmonic_elim_plots = _esacf(self.x_sacf, self.n_peaks_elim)
 
         # the data that's actually interesting
         self.interesting = self.ham_samples
-        peaks, _ = scipy.signal.find_peaks(self.x_esacf[: self.interesting])
-        peak_prominence, _, _ = scipy.signal.peak_prominences(
-            self.x_esacf[: self.interesting], peaks
+
+        x_esacf_ = self.x_esacf[: self.interesting]
+        self.peak_indices = peakutils.indexes(x_esacf_, thres=0.5, min_dist=100)
+
+        self.peak_indices_interp = peakutils.interpolate(
+            numpy.arange(self.interesting), x_esacf_, ind=self.peak_indices
         )
 
-        max_peak_prominences = numpy.argpartition(peak_prominence, -12)[-12:]
         chromagram = Chromagram()
-
-        for i in max_peak_prominences:
-            pitch = self.fs / peaks[i]
+        for i, tau in enumerate(self.peak_indices_interp):
+            pitch = self.fs / tau
             note = freq_to_note(pitch)
-            chromagram[note] += peak_prominence[i]
-
+            chromagram[note] = x_esacf_[self.peak_indices[i]]
         chromagram.normalize()
         return chromagram
 
     def display_plots(self):
         samples = numpy.arange(self.interesting)
 
-        fig1, (ax1, ax2, ax3) = plt.subplots(3, 1)
+        fig1, (ax1, ax2) = plt.subplots(2, 1)
 
         ax1.set_title("x[n] - {0}".format(self.clip_name))
         ax1.set_xlabel("n (samples)")
         ax1.set_ylabel("amplitude")
-        ax1.plot(samples, self.x[: self.interesting], "b", alpha=0.8, label="x[n]")
-        ax1.grid()
-        ax1.legend(loc="upper right")
-
-        ax2.set_title("x[n] lo and hi".format(self.clip_name))
-        ax2.set_xlabel("n (samples)")
-        ax2.set_ylabel("amplitude")
-        ax2.plot(
+        ax1.plot(samples, self.x[: self.interesting], "b", alpha=0.5, label="x[n]")
+        ax1.plot(
             samples,
             self.x_lo[: self.interesting],
-            "b",
-            alpha=0.8,
-            label="x[n] 1kHz lowpass",
+            "g",
+            alpha=0.5,
+            linestyle="--",
+            label="x[n] lo",
         )
-        ax2.plot(
+        ax1.plot(
             samples,
             self.x_hi[: self.interesting],
             "r",
-            alpha=0.8,
-            label="x[n] 1kHz highpass",
-        )
-        ax2.grid()
-        ax2.legend(loc="upper right")
-
-        ax3.set_title("SACF, ESACF")
-        ax3.set_xlabel("n (samples)")
-        ax3.set_ylabel("amplitude")
-        ax3.plot(
-            samples,
-            self.x_sacf[: self.interesting],
-            "g",
-            linestyle="--",
             alpha=0.5,
+            linestyle=":",
+            label="x[n] hi",
+        )
+        ax1.grid()
+        ax1.legend(loc="upper right")
+
+        ax2.set_title("SACF, ESACF")
+        ax2.set_xlabel("n (samples)")
+        ax2.set_ylabel("normalized amplitude")
+
+        i = 0
+        for i, h in enumerate(self.harmonic_elim_plots):
+            h_norm = h[: self.interesting] / numpy.max(h[: self.interesting])
+            ax2.plot(
+                samples,
+                h_norm,
+                "C{0}".format(i),
+                alpha=0.1,
+                label="time stretch {0}".format(2 + i),
+            )
+        i += 1
+        sacf_norm = self.x_sacf[: self.interesting] / numpy.max(
+            self.x_sacf[: self.interesting]
+        )
+        ax2.plot(
+            samples,
+            sacf_norm,
+            "C{0}".format(i),
+            linestyle="--",
+            alpha=0.75,
             label="sacf",
         )
-        ax3.plot(
+        esacf_norm = self.x_esacf[: self.interesting] / numpy.max(
+            self.x_esacf[: self.interesting]
+        )
+        i += 1
+        ax2.plot(
             samples,
-            self.x_esacf[: self.interesting],
-            "b",
+            esacf_norm,
+            "C{0}".format(i),
             linestyle=":",
-            alpha=0.5,
+            alpha=0.75,
             label="esacf",
         )
+        scatter_peaks = esacf_norm[self.peak_indices]
+        for i, ind in enumerate(self.peak_indices_interp):
+            pitch = round(self.fs / ind, 2)
+            text = "{0}, {1}".format(pitch, freq_to_note(pitch))
+            x = self.peak_indices_interp[i]
+            y = scatter_peaks[i]
+            ax2.plot(x, y, "rx")
+            ax2.text(x, y, text)
 
-        ax3.grid()
-        ax3.legend(loc="upper right")
+        ax2.grid()
+        ax2.legend(loc="lower left")
 
-        plt.axis("tight")
-        fig1.tight_layout()
         plt.show()
 
 
@@ -129,23 +151,27 @@ def sacf(x_channels: typing.List[numpy.ndarray], k=None) -> numpy.ndarray:
     return numpy.real(numpy.fft.ifft(running_sum))
 
 
-def _esacf(x2: numpy.ndarray, n_peaks: int) -> numpy.ndarray:
+def _esacf(
+    x2: numpy.ndarray, n_peaks: int
+) -> typing.Tuple[numpy.ndarray, typing.List[numpy.ndarray]]:
     """
     enhance the SACF with the following procedure
     clip to positive values, time stretch by n_peaks
     subtract original
     """
     x2tmp = x2.copy()
+    to_plot = []
 
     for timescale in range(2, n_peaks + 1):
         x2tmp = numpy.clip(x2tmp, 0, None)
         x2stretched = librosa.effects.time_stretch(x2tmp, timescale).copy()
 
         x2stretched.resize(x2tmp.shape)
+        to_plot.append(x2stretched)
         x2tmp -= x2stretched
         x2tmp = numpy.clip(x2tmp, 0, None)
 
-    return x2tmp
+    return x2tmp, to_plot
 
 
 def _highpass_filter(x: numpy.ndarray, fs: float) -> numpy.ndarray:
