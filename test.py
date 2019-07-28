@@ -5,6 +5,7 @@ from chord_detection import (
     MultipitchESACF,
     MultipitchIterativeF0,
     MultipitchHarmonicEnergy,
+    MultipitchPrimeMultiF0,
 )
 import librosa
 from chord_detection.notes import gen_octave
@@ -31,22 +32,29 @@ class TestChordDetection(unittest.TestCase):
         esacf = MultipitchESACF(self.test_wav_path)
         print(esacf.display_name())
         ret = esacf.compute_pitches().pack()
-        esacf.display_plots()
+        # esacf.display_plots()
         self.assertEqual(ret, "111111111111")
 
     def test_harmonic_energy(self):
         harmen = MultipitchHarmonicEnergy(self.test_wav_path)
         print(harmen.display_name())
         ret = harmen.compute_pitches().pack()
-        harmen.display_plots()
+        # harmen.display_plots()
         self.assertEqual(ret, "111111111111")
 
     def test_iterative_f0(self):
         iterativef0 = MultipitchIterativeF0(self.test_wav_path)
         print(iterativef0.display_name())
         ret = iterativef0.compute_pitches().pack()
-        iterativef0.display_plots()
+        # iterativef0.display_plots()
         self.assertEqual(ret, "111111111111")
+
+    def test_prime_multif0(self):
+        primef0 = MultipitchPrimeMultiF0(self.test_wav_path)
+        print(primef0.display_name())
+        cgram = primef0.compute_pitches()
+        self.assertEqual(cgram.pack(), "111111111111")
+        print(cgram)
 
     @classmethod
     def tearDownClass(cls):

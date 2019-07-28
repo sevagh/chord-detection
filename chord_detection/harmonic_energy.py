@@ -4,7 +4,8 @@ import scipy
 import scipy.signal
 import librosa
 import matplotlib.pyplot as plt
-from .multipitch import Multipitch, Chromagram
+from .multipitch import Multipitch
+from .chromagram import Chromagram
 from .notes import freq_to_note, gen_octave, NOTE_NAMES
 from collections import OrderedDict
 

@@ -5,7 +5,8 @@ import librosa
 import typing
 import peakutils
 import matplotlib.pyplot as plt
-from .multipitch import Multipitch, Chromagram
+from .multipitch import Multipitch
+from .chromagram import Chromagram
 from .wfir import wfir
 from .notes import freq_to_note, NOTE_NAMES
 from collections import OrderedDict

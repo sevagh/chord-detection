@@ -36,3 +36,12 @@ _M Stark, Adam and Plumbley, Mark., "Real-Time Chord Recognition for Live Perfor
 ![iterativef0](.github/iterativef0_demo.png)
 
 _Klapuri, Anssi, "Multipitch Analysis of Polyphonic Music and Speech Signals Using an Auditory Model," IEEE TRANSACTIONS ON AUDIO, SPEECH, AND LANGUAGE PROCESSING, VOL. 16, NO. 2, FEBRUARY 2008 255._
+
+### Prime-multiF0 (Camacho, Kaver-Oreamuno)
+
+![primemultif0](.github/primemultif0_demo.png)
+
+_Camacho, A, Oreamuno, I, "A multipitch estimation algorithm based on fundamental frequencies and prime harmonics," Sound and Music Computing Conference 2013._
+
+
+*N.B.* Doesn't perform great with instrument clips, but the paper only claims to perform well with generated sinewave + sawtooth clips, which my code agrees with in the unit tests.

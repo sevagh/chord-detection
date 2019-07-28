@@ -7,7 +7,8 @@ import scipy.fftpack
 import peakutils
 import librosa
 import matplotlib.pyplot as plt
-from .multipitch import Multipitch, Chromagram
+from .multipitch import Multipitch
+from .chromagram import Chromagram
 from .notes import freq_to_note, gen_octave, NOTE_NAMES
 from .wfir import wfir
 from .esacf import lowpass_filter, sacf
@@ -25,7 +26,7 @@ class MultipitchIterativeF0(Multipitch):
         epsilon1=0.39,
         peak_thresh=0.5,
         peak_min_dist=10,
-        harmonic_multiples_elim=10,
+        harmonic_multiples_elim=5,
     ):
         super().__init__(audio_path)
         self.frame_size = frame_size
@@ -39,6 +40,7 @@ class MultipitchIterativeF0(Multipitch):
             229 * (10 ** ((epsilon1 * c + epsilon0) / 21.4) - 1)
             for c in range(channels)
         ]
+        self.channels = [999, 2000]
         self.peak_thresh = peak_thresh
         self.peak_min_dist = peak_min_dist
         self.harmonic_multiples_elim = harmonic_multiples_elim
@@ -47,56 +49,62 @@ class MultipitchIterativeF0(Multipitch):
         return "[INCOMPLETE] Iterative F0 (Klapuri, Anssi)"
 
     def compute_pitches(self):
-        self.yc = []
+        self.ytc = [
+            [None for _ in range(len(self.channels))] for _ in range(self.num_frames)
+        ]
 
         for i, fc in enumerate(self.channels):
-            yc = self.x[: self.frame_size]
+            for j, x_t in enumerate(numpy.split(self.x, self.num_frames)):
+                yc = _auditory_filterbank(x_t, self.fs, fc)
+                yc = wfir(yc, self.fs, 12)  # dynamic level compression
+                yc[yc < 0] = -yc[yc < 0]  # full-wave rectification
+                yc = (
+                    yc + lowpass_filter(yc, self.fs, fc)
+                ) / 2.0  # sum with low-pass filtered version of self at center-channel frequency
 
-            yc = _auditory_filterbank(yc, self.fs, fc)
+                yc = numpy.append(
+                    yc * scipy.signal.hamming(self.frame_size),
+                    numpy.zeros(self.frame_size),
+                )
 
-            yc = wfir(yc, self.fs, 12)  # dynamic level compression
-            yc[yc < 0] = -yc[yc < 0]  # full-wave rectification
-
-            yc = (
-                yc + lowpass_filter(yc, self.fs, fc)
-            ) / 2.0  # sum with low-pass filtered version of self at center-channel frequency
-
-            yc = numpy.append(
-                yc * scipy.signal.hamming(self.frame_size), numpy.zeros(self.frame_size)
-            )
-
-            self.yc.append(yc)
+                self.ytc[j][i] = yc
 
         # while method 1/ESACF uses time stretching to eliminate harmonics, here we'll be iteratively eliminating the dominant f0?
-        self.Ut = sacf(self.yc, k=self.power)
+        self.Ut = [sacf(yc, k=self.power) for yc in self.ytc]
 
         chromagram = Chromagram()
 
-        while True:
-            peak_indices = peakutils.indexes(
-                self.Ut, thres=self.peak_thresh, min_dist=self.peak_min_dist
-            )
-
-            chosen_tau = None
-            if len(peak_indices) > 0:
-                peak_indices_interp = peakutils.interpolate(
-                    numpy.arange(self.Ut.shape[0]), self.Ut, ind=peak_indices
+        for frame, Ut in enumerate(self.Ut):
+            for _ in range(2):  # do the harmonic elimination twice
+                peak_indices = peakutils.indexes(
+                    Ut,
+                    thres=(self.peak_thresh * numpy.max(Ut)),
+                    min_dist=self.peak_min_dist,
                 )
-                chosen_tau = peak_indices_interp[0]
-                real_tau = peak_indices[0]
 
-                pitch = self.fs / chosen_tau
-                note = freq_to_note(pitch)
-                chromagram[note] += self.Ut[real_tau]
-                for i in range(1, self.harmonic_multiples_elim):
-                    index = i * real_tau
-                    if index > self.Ut.shape[0]:
-                        break
+                chosen_tau = None
+                if len(peak_indices) > 0:
+                    peak_indices_interp = peakutils.interpolate(
+                        numpy.arange(Ut.shape[0]), Ut, ind=peak_indices
+                    )
+                    chosen_tau = peak_indices_interp[0]
+                    real_tau = peak_indices[0]
+
+                    pitch = self.fs / chosen_tau
+                    try:
+                        note = freq_to_note(pitch)
+                        chromagram[note] += Ut[real_tau]
+                    except ValueError:
+                        pass
 
                     # eliminate harmonic multiples of the same f0
-                    self.Ut[index] -= self.Ut[index]
-            else:
-                break
+                    for harmonic_elim_index in range(1, self.harmonic_multiples_elim):
+                        index = harmonic_elim_index * real_tau
+                        if index > Ut.shape[0]:
+                            break
+                        Ut[index] -= Ut[index]
+                else:
+                    break
 
         chromagram.normalize()
         return chromagram
@@ -128,7 +136,7 @@ class MultipitchIterativeF0(Multipitch):
         ):
             ax2.plot(
                 numpy.arange(self.frame_size),
-                self.yc[x][: self.frame_size],
+                self.ytc[0][x][: self.frame_size],
                 color="C{0}".format(i),
                 linestyle="--",
                 alpha=0.5,
