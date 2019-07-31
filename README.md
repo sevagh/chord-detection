@@ -42,3 +42,5 @@ _Camacho, A, Oreamuno, I, "A multipitch estimation algorithm based on fundamenta
 ![iterativef0](.github/iterativef0_demo.png)
 
 _Klapuri, Anssi, "Multipitch Analysis of Polyphonic Music and Speech Signals Using an Auditory Model," IEEE TRANSACTIONS ON AUDIO, SPEECH, AND LANGUAGE PROCESSING, VOL. 16, NO. 2, FEBRUARY 2008 255._
+
+_Klapuri, Anssi. "Multiple Fundamental Frequency Estimation by Summing Harmonic Amplitudes." ISMIR (2006)._

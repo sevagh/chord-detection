@@ -1,9 +1,11 @@
 import numpy
 import math
 import random
+import typing
 import scipy
 import scipy.signal
 import scipy.fftpack
+from numba import njit, jit
 import peakutils
 import librosa
 import matplotlib.pyplot as plt
@@ -11,7 +13,7 @@ from .multipitch import Multipitch
 from .chromagram import Chromagram
 from .notes import freq_to_note, gen_octave, NOTE_NAMES
 from .wfir import wfir
-from .esacf import lowpass_filter, sacf
+from .esacf import lowpass_filter
 from collections import OrderedDict
 
 
@@ -20,13 +22,17 @@ class MultipitchIterativeF0(Multipitch):
         self,
         audio_path,
         frame_size=8192,
-        power=0.67,
+        power=1.0,
         channels=70,
-        epsilon0=2.3,
-        epsilon1=0.39,
+        zeta0=2.3,
+        zeta1=0.39,
+        epsilon1=20,
+        epsilon2=320,
         peak_thresh=0.5,
         peak_min_dist=10,
         harmonic_multiples_elim=5,
+        M=20,
+        delta_tau=20,
     ):
         super().__init__(audio_path)
         self.frame_size = frame_size
@@ -37,17 +43,20 @@ class MultipitchIterativeF0(Multipitch):
         pad = int(num_frames * frame_size - len(self.x))
         self.x = numpy.concatenate((self.x, numpy.zeros(pad)))
         self.channels = [
-            229 * (10 ** ((epsilon1 * c + epsilon0) / 21.4) - 1)
-            for c in range(channels)
+            229 * (10 ** ((zeta1 * c + zeta0) / 21.4) - 1) for c in range(channels)
         ]
-        self.channels = [999, 2000]
+        self.epsilon1 = epsilon1
+        self.epsilon2 = epsilon2
         self.peak_thresh = peak_thresh
         self.peak_min_dist = peak_min_dist
         self.harmonic_multiples_elim = harmonic_multiples_elim
+        self.M = M
+        self.delta_tau = delta_tau
 
     def display_name(self):
-        return "[INCOMPLETE] Iterative F0 (Klapuri, Anssi)"
+        return "Iterative F0 (Klapuri, Anssi)"
 
+    @jit
     def compute_pitches(self):
         self.ytc = [
             [None for _ in range(len(self.channels))] for _ in range(self.num_frames)
@@ -69,42 +78,28 @@ class MultipitchIterativeF0(Multipitch):
 
                 self.ytc[j][i] = yc
 
-        # while method 1/ESACF uses time stretching to eliminate harmonics, here we'll be iteratively eliminating the dominant f0?
-        self.Ut = [sacf(yc, k=self.power) for yc in self.ytc]
+        self.Ut = [_bandwise_summary_spectrum(yc, k=self.power) for yc in self.ytc]
 
         chromagram = Chromagram()
 
+        K = self.Ut[0].shape[0]
+        num_candidates = int(K / 2)
+
+        self.salience_t_tau = [numpy.zeros(num_candidates) for _ in range(self.num_frames)]
+
         for frame, Ut in enumerate(self.Ut):
-            for _ in range(2):  # do the harmonic elimination twice
-                peak_indices = peakutils.indexes(
-                    Ut,
-                    thres=(self.peak_thresh * numpy.max(Ut)),
-                    min_dist=self.peak_min_dist,
-                )
+            for tau in range(
+                1, num_candidates
+            ):  # maximum tau candidate is capped by nyquist
+                for m in range(1, self.M):
+                    self.salience_t_tau[frame][tau] += _weight(
+                        tau, self.fs, self.epsilon1, self.epsilon2, m
+                    ) * _max_Ut(Ut, tau, self.delta_tau, m, K)
 
-                chosen_tau = None
-                if len(peak_indices) > 0:
-                    peak_indices_interp = peakutils.interpolate(
-                        numpy.arange(Ut.shape[0]), Ut, ind=peak_indices
-                    )
-                    chosen_tau = peak_indices_interp[0]
-                    real_tau = peak_indices[0]
-
-                    pitch = self.fs / chosen_tau
-                    try:
-                        note = freq_to_note(pitch)
-                        chromagram[note] += Ut[real_tau]
-                    except ValueError:
-                        pass
-
-                    # eliminate harmonic multiples of the same f0
-                    for harmonic_elim_index in range(1, self.harmonic_multiples_elim):
-                        index = harmonic_elim_index * real_tau
-                        if index > Ut.shape[0]:
-                            break
-                        Ut[index] -= Ut[index]
-                else:
-                    break
+        for frame, salience_t in enumerate(self.salience_t_tau):
+            max_tau = numpy.argmax(salience_t)
+            note = freq_to_note(self.fs / max_tau)
+            chromagram[note] += salience_t[max_tau]
 
         chromagram.normalize()
         return chromagram
@@ -173,3 +168,41 @@ def _auditory_filterbank(x, fc, fs):
     x = scipy.signal.lfilter(resonator_2_b, resonator_2_a, x)
 
     return x
+
+
+"""
+i would've used the sacf() function here from method 1
+but the IFFT is specific to that method and we're using weighted salience for periodicity analysis here
+"""
+
+
+@jit
+def _bandwise_summary_spectrum(
+    x_channels: typing.List[numpy.ndarray], k=None
+) -> numpy.ndarray:
+    # k is same as p (power) in the Klapuri/Ansi paper
+    if not k:
+        k = 0.67
+
+    running_sum = numpy.zeros(x_channels[0].shape[0])
+
+    for xc in x_channels:
+        running_sum += numpy.abs(numpy.fft.fft(xc)) ** k
+
+    return running_sum
+
+
+def _weight(tau, fs, epsilon1, epsilon2, m):
+    return (fs / tau + epsilon1) / (m * fs / tau + epsilon2)
+
+
+@njit
+def _max_Ut(Ut, tau, delta_tau, m, K):
+    Ut_max = 0.0
+    for tau_adjusted in numpy.linspace(tau + delta_tau / 2, tau - delta_tau / 2):
+        if tau_adjusted == 0.0:
+            continue
+        k_tau_m = int(round(m * K / tau_adjusted))
+        if 0 <= k_tau_m < Ut.shape[0]:
+            Ut_max = max(Ut[k_tau_m], Ut_max)
+    return Ut_max

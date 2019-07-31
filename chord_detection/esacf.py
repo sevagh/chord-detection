@@ -48,7 +48,7 @@ class MultipitchESACF(Multipitch):
         self.x_lo = lowpass_filter(self.x.copy(), self.fs, 1000)
 
         self.x_sacf = sacf([self.x_lo, self.x_hi])
-        self.x_esacf, self.harmonic_elim_plots = esacf(
+        self.x_esacf, self.harmonic_elim_plots = _esacf(
             self.x_sacf, self.n_peaks_elim, True
         )
 
@@ -153,8 +153,8 @@ class MultipitchESACF(Multipitch):
         plt.show()
 
 
-def sacf(x_channels: typing.List[numpy.ndarray], k=None) -> numpy.ndarray:
-    # k is same as p (power) in the Klapuri/Ansi paper
+def _sacf(x_channels: typing.List[numpy.ndarray], k=None) -> numpy.ndarray:
+    # k is same as p (power) in the Klapuri/Ansi paper, method 3
     if not k:
         k = 0.67
 
@@ -166,7 +166,7 @@ def sacf(x_channels: typing.List[numpy.ndarray], k=None) -> numpy.ndarray:
     return numpy.real(numpy.fft.ifft(running_sum))
 
 
-def esacf(
+def _esacf(
     x2: numpy.ndarray, n_peaks: int, ret_plots: bool
 ) -> typing.Tuple[numpy.ndarray, typing.List[numpy.ndarray]]:
     """
