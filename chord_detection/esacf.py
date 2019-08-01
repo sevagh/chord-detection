@@ -9,6 +9,7 @@ from .multipitch import Multipitch
 from .chromagram import Chromagram
 from .wfir import wfir
 from .notes import freq_to_note, NOTE_NAMES
+from .frame import frame_cutter
 from collections import OrderedDict
 
 
@@ -33,44 +34,37 @@ class MultipitchESACF(Multipitch):
         return "ESACF (Tolonen, Karjalainen)"
 
     def compute_pitches(self):
-        diff = len(self.x) - self.ham_samples
-        self.x = self.x * numpy.concatenate(
-            (scipy.signal.hamming(self.ham_samples), numpy.zeros(diff))
-        )
-
+        overall_chromagram = Chromagram()
         # then, the 12th-order warped linear prediction filter
-        self.x = wfir(self.x, self.fs, 12)
+        for frame, x_frame in enumerate(frame_cutter(self.x, self.ham_samples)):
+            x = wfir(x_frame, self.fs, 12)
 
-        self.x_hi = _highpass_filter(self.x.copy(), self.fs)
-        self.x_hi = numpy.clip(self.x_hi, 0, None)  # half-wave rectification
-        self.x_hi = lowpass_filter(self.x_hi, self.fs, 1000)  # paper wants it
+            x_hi = _highpass_filter(x, self.fs)
+            x_hi = numpy.clip(x_hi, 0, None)  # half-wave rectification
+            x_hi = lowpass_filter(x_hi, self.fs, 1000)  # paper wants it
 
-        self.x_lo = lowpass_filter(self.x.copy(), self.fs, 1000)
+            x_lo = lowpass_filter(x, self.fs, 1000)
 
-        self.x_sacf = _sacf([self.x_lo, self.x_hi])
-        self.x_esacf, self.harmonic_elim_plots = _esacf(
-            self.x_sacf, self.n_peaks_elim, True
-        )
+            x_sacf = _sacf([x_lo, x_hi])
+            x_esacf, self.harmonic_elim_plots = _esacf(x_sacf, self.n_peaks_elim, True)
 
-        # the data that's actually interesting
-        self.interesting = self.ham_samples
+            peak_indices = peakutils.indexes(
+                x_esacf, thres=self.peak_thresh, min_dist=self.peak_min_dist
+            )
 
-        x_esacf_ = self.x_esacf[: self.interesting]
-        self.peak_indices = peakutils.indexes(
-            x_esacf_, thres=self.peak_thresh, min_dist=self.peak_min_dist
-        )
+            peak_indices_interp = peakutils.interpolate(
+                numpy.arange(x_esacf.shape[0]), x_esacf, ind=peak_indices
+            )
 
-        self.peak_indices_interp = peakutils.interpolate(
-            numpy.arange(self.interesting), x_esacf_, ind=self.peak_indices
-        )
+            chromagram = Chromagram()
+            for i, tau in enumerate(peak_indices_interp):
+                pitch = self.fs / tau
+                note = freq_to_note(pitch)
+                chromagram[note] += x_esacf[peak_indices[i]]
+            chromagram.normalize()
+            overall_chromagram += chromagram
 
-        chromagram = Chromagram()
-        for i, tau in enumerate(self.peak_indices_interp):
-            pitch = self.fs / tau
-            note = freq_to_note(pitch)
-            chromagram[note] += x_esacf_[self.peak_indices[i]]
-        chromagram.normalize()
-        return chromagram
+        return "".join([str(x) for x in overall_chromagram.pack()])
 
     def display_plots(self):
         samples = numpy.arange(self.interesting)

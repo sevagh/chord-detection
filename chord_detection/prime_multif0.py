@@ -12,6 +12,7 @@ from .multipitch import Multipitch
 from .chromagram import Chromagram
 from .wfir import wfir
 from .notes import freq_to_note, gen_octave, NOTE_NAMES
+from .frame import frame_cutter
 from collections import OrderedDict
 
 
@@ -34,10 +35,11 @@ class MultipitchPrimeMultiF0(Multipitch):
         return "Prime-multiF0 (Camacho, Kaver-Oreamuno)"
 
     def compute_pitches(self):
+        overall_chromagram = Chromagram()
+
         # first C = C3 aka 130.81 Hz
         notes = list(gen_octave(130.81))
 
-        chromagram = Chromagram()
         self.specgram_to_plot = []
 
         for n in range(12):
@@ -46,9 +48,8 @@ class MultipitchPrimeMultiF0(Multipitch):
                     f_candidate = notes[n] * octave * harmonic
                     window_size = int((8 / f_candidate) * self.fs)
 
-                    for i, x_t in enumerate(
-                        numpy.array_split(self.x, int(self.x.shape[0] / window_size))
-                    ):
+                    chromagram = Chromagram()
+                    for i, x_t in enumerate(frame_cutter(self.x, window_size)):
                         real_window_size = max(x_t.shape[0], window_size)
                         window = numpy.hanning(real_window_size)
                         s, f = mlab.magnitude_spectrum(x_t, Fs=self.fs, window=window)
@@ -78,9 +79,10 @@ class MultipitchPrimeMultiF0(Multipitch):
                             self.specgram_to_plot.append(
                                 (might_append_1, might_append_2, might_append_3)
                             )
+                    chromagram.normalize()
+                    overall_chromagram += chromagram
 
-        chromagram.normalize()
-        return chromagram
+        return "".join([str(x) for x in overall_chromagram.pack()])
 
     def display_plots(self):
         fig1, (ax1, ax2) = plt.subplots(2, 1)

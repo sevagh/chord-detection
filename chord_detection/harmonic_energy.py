@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 from .multipitch import Multipitch
 from .chromagram import Chromagram
 from .notes import freq_to_note, gen_octave, NOTE_NAMES
+from .frame import frame_cutter
 from collections import OrderedDict
 
 
@@ -24,51 +25,47 @@ class MultipitchHarmonicEnergy(Multipitch):
         return "Harmonic Energy (Stark, Plumbley)"
 
     def compute_pitches(self):
-        # first, signal frame
-        self.x_frame = self.x[: self.frame_size]
-
-        # then hamming
-        self.x_frame = self.x_frame * scipy.signal.hamming(self.frame_size)
-
-        # then sqrt of magnitude of DFT
-        self.x_dft = numpy.sqrt(numpy.absolute(numpy.fft.rfft(self.x_frame)))
-
-        # chroma vector calculation
-        chromagram = Chromagram()
-
         # first C = C3 aka 130.81 Hz
         notes = list(gen_octave(130.81))
 
         divisor_ratio = (self.fs / 4.0) / self.frame_size
         self.dft_maxes = []
 
-        for n in range(12):
-            chroma_sum = 0.0
-            for octave in range(1, self.num_octave + 1):
-                note_sum = 0.0
-                for harmonic in range(1, self.num_harmonic + 1):
-                    x_dft_max = float("-inf")  # sentinel
+        overall_chromagram = Chromagram()
 
-                    k_prime = numpy.round(
-                        (notes[n] * octave * harmonic) / divisor_ratio
-                    )
-                    k0 = int(k_prime - self.num_bins * harmonic)
-                    k1 = int(k_prime + self.num_bins * harmonic)
+        for frame, x in enumerate(frame_cutter(self.x, self.frame_size)):
+            chromagram = Chromagram()
+            x = x * scipy.signal.hamming(self.frame_size)
+            x_dft = numpy.sqrt(numpy.absolute(numpy.fft.rfft(x)))
+            for n in range(12):
+                chroma_sum = 0.0
+                for octave in range(1, self.num_octave + 1):
+                    note_sum = 0.0
+                    for harmonic in range(1, self.num_harmonic + 1):
+                        x_dft_max = float("-inf")  # sentinel
 
-                    best_ind = None
-                    for k in range(k0, k1):
-                        curr_ = self.x_dft[k]
-                        if curr_ > x_dft_max:
-                            x_dft_max = curr_
-                            best_ind = k
+                        k_prime = numpy.round(
+                            (notes[n] * octave * harmonic) / divisor_ratio
+                        )
+                        k0 = int(k_prime - self.num_bins * harmonic)
+                        k1 = int(k_prime + self.num_bins * harmonic)
 
-                    note_sum += x_dft_max * (1.0 / harmonic)
-                    self.dft_maxes.append((k0, best_ind, k1))
-                chroma_sum += note_sum
-            chromagram[n] += chroma_sum
+                        best_ind = None
+                        for k in range(k0, k1):
+                            curr_ = x_dft[k]
+                            if curr_ > x_dft_max:
+                                x_dft_max = curr_
+                                best_ind = k
 
-        chromagram.normalize()
-        return chromagram
+                        note_sum += x_dft_max * (1.0 / harmonic)
+                        self.dft_maxes.append((k0, best_ind, k1))
+                    chroma_sum += note_sum
+                chromagram[n] += chroma_sum
+
+            chromagram.normalize()
+            overall_chromagram += chromagram
+
+        return "".join([str(x) for x in overall_chromagram.pack()])
 
     def display_plots(self):
         pltlen = self.frame_size

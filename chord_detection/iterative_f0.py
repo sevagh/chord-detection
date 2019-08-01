@@ -14,6 +14,7 @@ from .chromagram import Chromagram
 from .notes import freq_to_note, gen_octave, NOTE_NAMES
 from .wfir import wfir
 from .esacf import lowpass_filter
+from .frame import frame_cutter
 from collections import OrderedDict
 
 
@@ -36,12 +37,8 @@ class MultipitchIterativeF0(Multipitch):
     ):
         super().__init__(audio_path)
         self.frame_size = frame_size
+        self.num_frames = math.ceil(self.x.shape[0] / self.frame_size)
         self.power = power
-        num_frames = float(len(self.x)) / float(frame_size)
-        num_frames = int(math.ceil(num_frames))
-        self.num_frames = num_frames
-        pad = int(num_frames * frame_size - len(self.x))
-        self.x = numpy.concatenate((self.x, numpy.zeros(pad)))
         self.channels = [
             229 * (10 ** ((zeta1 * c + zeta0) / 21.4) - 1) for c in range(channels)
         ]
@@ -62,7 +59,7 @@ class MultipitchIterativeF0(Multipitch):
         ]
 
         for i, fc in enumerate(self.channels):
-            for j, x_t in enumerate(numpy.split(self.x, self.num_frames)):
+            for j, x_t in enumerate(frame_cutter(self.x, self.frame_size)):
                 yc = _auditory_filterbank(x_t, self.fs, fc)
                 yc = wfir(yc, self.fs, 12)  # dynamic level compression
                 yc[yc < 0] = -yc[yc < 0]  # full-wave rectification
@@ -78,8 +75,6 @@ class MultipitchIterativeF0(Multipitch):
                 self.ytc[j][i] = yc
 
         self.Ut = [_bandwise_summary_spectrum(yc, k=self.power) for yc in self.ytc]
-
-        chromagram = Chromagram()
 
         K = self.Ut[0].shape[0]
         num_candidates = int(K / 2)
@@ -97,13 +92,19 @@ class MultipitchIterativeF0(Multipitch):
                         tau, self.fs, self.epsilon1, self.epsilon2, m
                     ) * _max_Ut(Ut, tau, self.delta_tau, m, K)
 
-        for frame, salience_t in enumerate(self.salience_t_tau):
-            max_tau = numpy.argmax(salience_t)
-            note = freq_to_note(self.fs / max_tau)
-            chromagram[note] += salience_t[max_tau]
+        overall_chromagram = Chromagram()
 
-        chromagram.normalize()
-        return chromagram
+        for frame, salience_t in enumerate(self.salience_t_tau):
+            # TODO - iterative cancellation, or simultaneous f0 discovery?
+            max_tau = numpy.argmax(salience_t)
+            c = Chromagram()
+            note = freq_to_note(self.fs / max_tau)
+            c[note] += salience_t[max_tau]
+            c.normalize()
+
+            overall_chromagram += c
+
+        return "".join([str(x) for x in overall_chromagram.pack()])
 
     def display_plots(self):
         fig1, (ax1, ax2) = plt.subplots(2, 1)
