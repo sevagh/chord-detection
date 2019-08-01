@@ -5,10 +5,10 @@ import typing
 import scipy
 import scipy.signal
 import scipy.fftpack
-from numba import njit, jit
 import peakutils
 import librosa
 import matplotlib.pyplot as plt
+from numba import njit, jit
 from .multipitch import Multipitch
 from .chromagram import Chromagram
 from .notes import freq_to_note, gen_octave, NOTE_NAMES
@@ -56,7 +56,6 @@ class MultipitchIterativeF0(Multipitch):
     def display_name(self):
         return "Iterative F0 (Klapuri, Anssi)"
 
-    @jit
     def compute_pitches(self):
         self.ytc = [
             [None for _ in range(len(self.channels))] for _ in range(self.num_frames)
@@ -85,7 +84,9 @@ class MultipitchIterativeF0(Multipitch):
         K = self.Ut[0].shape[0]
         num_candidates = int(K / 2)
 
-        self.salience_t_tau = [numpy.zeros(num_candidates) for _ in range(self.num_frames)]
+        self.salience_t_tau = [
+            numpy.zeros(num_candidates) for _ in range(self.num_frames)
+        ]
 
         for frame, Ut in enumerate(self.Ut):
             for tau in range(
@@ -176,7 +177,6 @@ but the IFFT is specific to that method and we're using weighted salience for pe
 """
 
 
-@jit
 def _bandwise_summary_spectrum(
     x_channels: typing.List[numpy.ndarray], k=None
 ) -> numpy.ndarray:

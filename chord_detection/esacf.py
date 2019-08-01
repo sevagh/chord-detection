@@ -47,7 +47,7 @@ class MultipitchESACF(Multipitch):
 
         self.x_lo = lowpass_filter(self.x.copy(), self.fs, 1000)
 
-        self.x_sacf = sacf([self.x_lo, self.x_hi])
+        self.x_sacf = _sacf([self.x_lo, self.x_hi])
         self.x_esacf, self.harmonic_elim_plots = _esacf(
             self.x_sacf, self.n_peaks_elim, True
         )

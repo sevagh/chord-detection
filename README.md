@@ -15,6 +15,8 @@ Harmonic Energy (Stark, Plumbley)
 
 Run outside of Docker (e.g. for displaying matplotlib plots with `--displayplots`, running unittests with `python3.7 -m unittest`) by installing requirements.txt in Python 3.7.
 
+To run tests, run `make test` which generates a variety of tone-based test clips (1, 2, and 3-note combinations using [librosa.core.tone](https://librosa.github.io/librosa/generated/librosa.core.tone.html)) and runs the unittests (no asserts, just prints).
+
 ### Methods
 
 #### ESACF (Tolonen, Karjalainen)
