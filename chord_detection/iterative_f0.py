@@ -100,11 +100,9 @@ class MultipitchIterativeF0(Multipitch):
             c = Chromagram()
             note = freq_to_note(self.fs / max_tau)
             c[note] += salience_t[max_tau]
-            c.normalize()
-
             overall_chromagram += c
 
-        return "".join([str(x) for x in overall_chromagram.pack()])
+        return overall_chromagram.pack()
 
     def display_plots(self):
         fig1, (ax1, ax2) = plt.subplots(2, 1)

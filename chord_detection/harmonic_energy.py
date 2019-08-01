@@ -62,10 +62,8 @@ class MultipitchHarmonicEnergy(Multipitch):
                     chroma_sum += note_sum
                 chromagram[n] += chroma_sum
 
-            chromagram.normalize()
             overall_chromagram += chromagram
-
-        return "".join([str(x) for x in overall_chromagram.pack()])
+        return overall_chromagram.pack()
 
     def display_plots(self):
         pltlen = self.frame_size

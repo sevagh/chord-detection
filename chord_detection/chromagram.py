@@ -1,6 +1,7 @@
 from collections import OrderedDict
 from collections.abc import Sequence
 from .notes import NOTE_NAMES
+import math
 from pprint import pformat
 
 
@@ -35,31 +36,28 @@ class Chromagram(Sequence):
         return pformat(self.c)
 
     def __add__(self, other):
-        if not self.p:
-            self.p = [0 for _ in range(12)]
-        if not other.p:
-            other.pack()
-        self.p = [self.p[i] + other.p[i] for i in range(12)]
+        for k in self.c.keys():
+            self.c[k] += other.c[k]
         return self
 
-    def normalize(self):
-        chromagram_max = max(self.c.values())
-        if chromagram_max == 0.0:
+    def _normalize(self):
+        chromagram_min = min(self.c.values())
+        if chromagram_min == 0.0:
             return
 
         for k in self.c.keys():
-            self.c[k] = round(self.c[k] / chromagram_max, 3)
+            self.c[k] = round(self.c[k] / chromagram_min, 3)
 
     def pack(self):
-        self.normalize()
-        if self.p:
-            return self.p
+        self._normalize()
+        chromagram_max = max(self.c.values())
+        if chromagram_max > 9.0:
+            for k in self.c.keys():
+                self.c[k] *= 9.0 / chromagram_max
 
-        self.p = [0 for _ in range(12)]
+        pack = [0 for _ in range(12)]
 
         for i, v in enumerate(self.c.values()):
-            bit_out = 0
-            if v > 0.5:
-                bit_out = 1
-            self.p[i] = bit_out
-        return self.p
+            pack[i] = int(round(v))
+
+        return "".join([str(p_) for p_ in pack])

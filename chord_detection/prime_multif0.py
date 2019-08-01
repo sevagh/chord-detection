@@ -79,10 +79,9 @@ class MultipitchPrimeMultiF0(Multipitch):
                             self.specgram_to_plot.append(
                                 (might_append_1, might_append_2, might_append_3)
                             )
-                    chromagram.normalize()
                     overall_chromagram += chromagram
 
-        return "".join([str(x) for x in overall_chromagram.pack()])
+        return overall_chromagram.pack()
 
     def display_plots(self):
         fig1, (ax1, ax2) = plt.subplots(2, 1)

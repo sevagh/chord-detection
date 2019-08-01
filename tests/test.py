@@ -31,10 +31,9 @@ class TestChordDetection(unittest.TestCase):
                 MultipitchPrimeMultiF0(test_clip),
             ]
             for c in compute_objs:
-                ret = c.compute_pitches().pack()
+                ret = c.compute_pitches()
                 print(
                     "{0}\n{1}\n{2} expected\n{3} actual\n".format(
                         c.display_name(), test_clip, expected_result, ret
                     )
                 )
-                c.display_plots()

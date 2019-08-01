@@ -35,6 +35,7 @@ class MultipitchESACF(Multipitch):
 
     def compute_pitches(self):
         overall_chromagram = Chromagram()
+
         # then, the 12th-order warped linear prediction filter
         for frame, x_frame in enumerate(frame_cutter(self.x, self.ham_samples)):
             x = wfir(x_frame, self.fs, 12)
@@ -61,10 +62,9 @@ class MultipitchESACF(Multipitch):
                 pitch = self.fs / tau
                 note = freq_to_note(pitch)
                 chromagram[note] += x_esacf[peak_indices[i]]
-            chromagram.normalize()
             overall_chromagram += chromagram
 
-        return "".join([str(x) for x in overall_chromagram.pack()])
+        return overall_chromagram.pack()
 
     def display_plots(self):
         samples = numpy.arange(self.interesting)
