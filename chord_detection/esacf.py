@@ -19,7 +19,7 @@ class MultipitchESACF(Multipitch):
         ham_ms=46.4,
         k=0.67,
         n_peaks_elim=6,
-        peak_thresh=0.5,
+        peak_thresh=0.1,
         peak_min_dist=10,
     ):
         super().__init__(audio_path)

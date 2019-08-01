@@ -37,3 +37,4 @@ class TestChordDetection(unittest.TestCase):
                         c.display_name(), test_clip, expected_result, ret
                     )
                 )
+                c.display_plots()

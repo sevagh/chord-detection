@@ -17,6 +17,8 @@ Run outside of Docker (e.g. for displaying matplotlib plots with `--displayplots
 
 To run tests, run `make test` which generates a variety of tone-based test clips (1, 2, and 3-note combinations using [librosa.core.tone](https://librosa.github.io/librosa/generated/librosa.core.tone.html)) and runs the unittests (no asserts, just prints).
 
+**N.B.** these are experimental implementations that may not work right. Each method has many parameters that affect the results, and chord detection is a hard problem - in some of the papers the mentioned results and success rates are lower than expected.
+
 ### Methods
 
 #### ESACF (Tolonen, Karjalainen)
@@ -39,7 +41,7 @@ _M Stark, Adam and Plumbley, Mark., "Real-Time Chord Recognition for Live Perfor
 
 _Camacho, A, Oreamuno, I, "A multipitch estimation algorithm based on fundamental frequencies and prime harmonics," Sound and Music Computing Conference 2013._
 
-#### [INCOMPLETE] Iterative F0 (Klapuri, Anssi)
+#### Iterative F0 (Klapuri, Anssi)
 
 ![iterativef0](.github/iterativef0_demo.png)
 
