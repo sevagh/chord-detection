@@ -17,12 +17,10 @@ if __name__ == "__main__":
 
     parser.add_argument("--key", help="estimate the key of input audio clip")
     parser.add_argument(
-        "--bitstring", action="store_true", help="emit a 12-note chromagram bitstring"
-    )
-    parser.add_argument(
         "--displayplots",
-        action="store_true",
-        help="display intermediate plots with matplotlib",
+        type=int,
+        help="display intermediate plots at specified frame with matplotlib",
+        default=-1,
     )
     parser.add_argument(
         "--method",
@@ -49,12 +47,5 @@ if __name__ == "__main__":
 
     for compute_obj in compute_objs:
         print(compute_obj.display_name())
-
-        chromagram = compute_obj.compute_pitches()
-        if args.bitstring:
-            print(chromagram.pack())
-        else:
-            print(chromagram)
-
-        if args.displayplots:
-            compute_obj.display_plots()
+        chromagram = compute_obj.compute_pitches(args.displayplots)
+        print(chromagram)

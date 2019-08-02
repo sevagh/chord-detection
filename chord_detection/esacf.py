@@ -33,7 +33,7 @@ class MultipitchESACF(Multipitch):
     def display_name(self):
         return "ESACF (Tolonen, Karjalainen)"
 
-    def compute_pitches(self):
+    def compute_pitches(self, display_plot_frame=-1):
         overall_chromagram = Chromagram()
 
         # then, the 12th-order warped linear prediction filter
@@ -47,7 +47,7 @@ class MultipitchESACF(Multipitch):
             x_lo = lowpass_filter(x, self.fs, 1000)
 
             x_sacf = _sacf([x_lo, x_hi])
-            x_esacf, self.harmonic_elim_plots = _esacf(x_sacf, self.n_peaks_elim, True)
+            x_esacf, harmonic_elim_plots = _esacf(x_sacf, self.n_peaks_elim, True)
 
             peak_indices = peakutils.indexes(
                 x_esacf, thres=self.peak_thresh, min_dist=self.peak_min_dist
@@ -64,87 +64,23 @@ class MultipitchESACF(Multipitch):
                 chromagram[note] += x_esacf[peak_indices[i]]
             overall_chromagram += chromagram
 
+            if frame == display_plot_frame:
+                _display_plots(
+                    self.clip_name,
+                    self.fs,
+                    self.ham_samples,
+                    frame,
+                    x,
+                    x_lo,
+                    x_hi,
+                    x_sacf,
+                    x_esacf,
+                    harmonic_elim_plots,
+                    peak_indices,
+                    peak_indices_interp,
+                )
+
         return overall_chromagram.pack()
-
-    def display_plots(self):
-        samples = numpy.arange(self.interesting)
-
-        fig1, (ax1, ax2) = plt.subplots(2, 1)
-
-        ax1.set_title("x[n] - {0}".format(self.clip_name))
-        ax1.set_xlabel("n (samples)")
-        ax1.set_ylabel("amplitude")
-        ax1.plot(samples, self.x[: self.interesting], "b", alpha=0.5, label="x[n]")
-        ax1.plot(
-            samples,
-            self.x_lo[: self.interesting],
-            "g",
-            alpha=0.5,
-            linestyle="--",
-            label="x[n] lo",
-        )
-        ax1.plot(
-            samples,
-            self.x_hi[: self.interesting],
-            "r",
-            alpha=0.5,
-            linestyle=":",
-            label="x[n] hi",
-        )
-        ax1.grid()
-        ax1.legend(loc="upper right")
-
-        ax2.set_title("SACF, ESACF")
-        ax2.set_xlabel("n (samples)")
-        ax2.set_ylabel("normalized amplitude")
-
-        i = 0
-        for i, h in enumerate(self.harmonic_elim_plots):
-            h_norm = h[: self.interesting] / numpy.max(h[: self.interesting])
-            ax2.plot(
-                samples,
-                h_norm,
-                "C{0}".format(i),
-                alpha=0.1,
-                label="time stretch {0}".format(2 + i),
-            )
-        i += 1
-        sacf_norm = self.x_sacf[: self.interesting] / numpy.max(
-            self.x_sacf[: self.interesting]
-        )
-        ax2.plot(
-            samples,
-            sacf_norm,
-            "C{0}".format(i),
-            linestyle="--",
-            alpha=0.75,
-            label="sacf",
-        )
-        esacf_norm = self.x_esacf[: self.interesting] / numpy.max(
-            self.x_esacf[: self.interesting]
-        )
-        i += 1
-        ax2.plot(
-            samples,
-            esacf_norm,
-            "C{0}".format(i),
-            linestyle=":",
-            alpha=0.75,
-            label="esacf",
-        )
-        scatter_peaks = esacf_norm[self.peak_indices]
-        for i, ind in enumerate(self.peak_indices_interp):
-            pitch = round(self.fs / ind, 2)
-            text = "{0}, {1}".format(pitch, freq_to_note(pitch))
-            x = self.peak_indices_interp[i]
-            y = scatter_peaks[i]
-            ax2.plot(x, y, "rx")
-            ax2.text(x, y, text)
-
-        ax2.grid()
-        ax2.legend(loc="lower left")
-
-        plt.show()
 
 
 def _sacf(x_channels: typing.List[numpy.ndarray], k=None) -> numpy.ndarray:
@@ -200,3 +136,69 @@ Paper says:
 def lowpass_filter(x: numpy.ndarray, fs: float, band: float) -> numpy.ndarray:
     b, a = scipy.signal.butter(2, [band / (fs / 2)], btype="low")
     return scipy.signal.lfilter(b, a, x)
+
+
+def _display_plots(
+    clip_name,
+    fs,
+    frame_size,
+    frame,
+    x,
+    x_lo,
+    x_hi,
+    x_sacf,
+    x_esacf,
+    harmonic_elim_plots,
+    peak_indices,
+    peak_indices_interp,
+):
+    samples = numpy.arange(frame_size)
+
+    fig1, (ax1, ax2) = plt.subplots(2, 1)
+
+    ax1.set_title("{0} - x[n], frame {1}".format(clip_name, frame))
+    ax1.set_xlabel("n (samples)")
+    ax1.set_ylabel("amplitude")
+    ax1.plot(samples, x, "b", alpha=0.5, label="x[n]")
+    ax1.plot(samples, x_lo, "g", alpha=0.5, linestyle="--", label="x[n] lo")
+    ax1.plot(samples, x_hi, "r", alpha=0.5, linestyle=":", label="x[n] hi")
+    ax1.grid()
+    ax1.legend(loc="upper right")
+
+    ax2.set_title("SACF, ESACF")
+    ax2.set_xlabel("n (samples)")
+    ax2.set_ylabel("normalized amplitude")
+
+    i = 0
+    for i, h in enumerate(harmonic_elim_plots):
+        h_norm = h / numpy.max(h)
+        ax2.plot(
+            samples,
+            h_norm,
+            "C{0}".format(i),
+            alpha=0.1,
+            label="time stretch {0}".format(2 + i),
+        )
+    i += 1
+    sacf_norm = x_sacf / numpy.max(x_sacf)
+    ax2.plot(
+        samples, sacf_norm, "C{0}".format(i), linestyle="--", alpha=0.5, label="sacf"
+    )
+    esacf_norm = x_esacf / numpy.max(x_esacf)
+    i += 1
+    ax2.plot(
+        samples, esacf_norm, "C{0}".format(i), linestyle=":", alpha=0.5, label="esacf"
+    )
+    scatter_peaks = esacf_norm[peak_indices]
+    for i, ind in enumerate(peak_indices_interp):
+        pitch = round(fs / ind, 2)
+        text = "{0}, {1}".format(pitch, freq_to_note(pitch))
+        x = peak_indices_interp[i]
+        y = scatter_peaks[i]
+        ax2.plot(x, y, "rx")
+        ax2.text(x, y, text)
+
+    ax2.grid()
+    ax2.legend(loc="lower left")
+
+    plt.show()

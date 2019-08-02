@@ -19,9 +19,5 @@ class Multipitch(ABC):
         pass
 
     @abstractmethod
-    def display_plots(self):
-        pass
-
-    @abstractmethod
     def display_name(self):
         pass

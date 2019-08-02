@@ -2,7 +2,6 @@ from collections import OrderedDict
 from collections.abc import Sequence
 from .notes import NOTE_NAMES
 import math
-from pprint import pformat
 
 
 class Chromagram(Sequence):
@@ -33,7 +32,7 @@ class Chromagram(Sequence):
         return len(self.c)
 
     def __repr__(self):
-        return pformat(self.c)
+        return self.pack()
 
     def __add__(self, other):
         for k in self.c.keys():
