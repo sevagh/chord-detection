@@ -5,11 +5,11 @@ import librosa
 import typing
 import peakutils
 import matplotlib.pyplot as plt
-from .multipitch import Multipitch
-from .chromagram import Chromagram
-from .wfir import wfir
-from .notes import freq_to_note, NOTE_NAMES
-from .frame import frame_cutter
+from ..multipitch import Multipitch
+from ..chromagram import Chromagram
+from ..dsp.wfir import wfir
+from ..music.notes import freq_to_note, NOTE_NAMES
+from ..dsp.frame import frame_cutter
 from collections import OrderedDict
 
 
@@ -30,13 +30,17 @@ class MultipitchESACF(Multipitch):
         self.peak_thresh = peak_thresh
         self.peak_min_dist = peak_min_dist
 
-    def display_name(self):
+    @staticmethod
+    def display_name():
         return "ESACF (Tolonen, Karjalainen)"
+
+    @staticmethod
+    def method_number():
+        return 1
 
     def compute_pitches(self, display_plot_frame=-1):
         overall_chromagram = Chromagram()
 
-        # then, the 12th-order warped linear prediction filter
         for frame, x_frame in enumerate(frame_cutter(self.x, self.ham_samples)):
             x = wfir(x_frame, self.fs, 12)
 
@@ -88,10 +92,12 @@ def _sacf(x_channels: typing.List[numpy.ndarray], k=None) -> numpy.ndarray:
     if not k:
         k = 0.67
 
-    running_sum = numpy.zeros(x_channels[0].shape[0])
+    shape = int((x_channels[0].shape[0] - 1) / 2)
+
+    running_sum = numpy.zeros(shape)
 
     for xc in x_channels:
-        running_sum += numpy.abs(numpy.fft.fft(xc)) ** k
+        running_sum += numpy.abs(numpy.fft.fft(xc)[:shape]) ** k
 
     return numpy.real(numpy.fft.ifft(running_sum))
 
@@ -174,7 +180,7 @@ def _display_plots(
         h_norm = h / numpy.max(h)
         ax2.plot(
             samples,
-            h_norm,
+            numpy.concatenate((h_norm, numpy.zeros(samples.shape[0] - h.shape[0]))),
             "C{0}".format(i),
             alpha=0.1,
             label="time stretch {0}".format(2 + i),
@@ -182,12 +188,26 @@ def _display_plots(
     i += 1
     sacf_norm = x_sacf / numpy.max(x_sacf)
     ax2.plot(
-        samples, sacf_norm, "C{0}".format(i), linestyle="--", alpha=0.5, label="sacf"
+        samples,
+        numpy.concatenate(
+            (sacf_norm, numpy.zeros(samples.shape[0] - sacf_norm.shape[0]))
+        ),
+        "C{0}".format(i),
+        linestyle="--",
+        alpha=0.5,
+        label="sacf",
     )
     esacf_norm = x_esacf / numpy.max(x_esacf)
     i += 1
     ax2.plot(
-        samples, esacf_norm, "C{0}".format(i), linestyle=":", alpha=0.5, label="esacf"
+        samples,
+        numpy.concatenate(
+            (esacf_norm, numpy.zeros(samples.shape[0] - sacf_norm.shape[0]))
+        ),
+        "C{0}".format(i),
+        linestyle=":",
+        alpha=0.5,
+        label="esacf",
     )
     scatter_peaks = esacf_norm[peak_indices]
     for i, ind in enumerate(peak_indices_interp):

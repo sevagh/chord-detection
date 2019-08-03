@@ -1,6 +1,6 @@
 from collections import OrderedDict
 from collections.abc import Sequence
-from .notes import NOTE_NAMES
+from .music.notes import NOTE_NAMES
 import math
 
 

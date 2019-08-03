@@ -8,11 +8,11 @@ import typing
 import peakutils
 from matplotlib import mlab
 import matplotlib.pyplot as plt
-from .multipitch import Multipitch
-from .chromagram import Chromagram
-from .wfir import wfir
-from .notes import freq_to_note, gen_octave, NOTE_NAMES
-from .frame import frame_cutter
+from ..multipitch import Multipitch
+from ..chromagram import Chromagram
+from ..dsp.wfir import wfir
+from ..music.notes import freq_to_note, gen_octave, NOTE_NAMES
+from ..dsp.frame import frame_cutter
 from collections import OrderedDict
 
 
@@ -31,8 +31,13 @@ class MultipitchPrimeMultiF0(Multipitch):
         self.harmonic_elim_runs = harmonic_elim_runs
         self.harmonic_multiples_elim = harmonic_multiples_elim
 
-    def display_name(self):
+    @staticmethod
+    def display_name():
         return "Prime-multiF0 (Camacho, Kaver-Oreamuno)"
+
+    @staticmethod
+    def method_number():
+        return 4
 
     def compute_pitches(self):
         overall_chromagram = Chromagram()

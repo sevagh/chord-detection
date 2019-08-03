@@ -4,10 +4,10 @@ import scipy
 import scipy.signal
 import librosa
 import matplotlib.pyplot as plt
-from .multipitch import Multipitch
-from .chromagram import Chromagram
-from .notes import freq_to_note, gen_octave, NOTE_NAMES
-from .frame import frame_cutter
+from ..multipitch import Multipitch
+from ..chromagram import Chromagram
+from ..music.notes import freq_to_note, gen_octave, NOTE_NAMES
+from ..dsp.frame import frame_cutter
 from collections import OrderedDict
 
 
@@ -21,8 +21,13 @@ class MultipitchHarmonicEnergy(Multipitch):
         self.num_octave = num_octave
         self.num_bins = num_bins
 
-    def display_name(self):
+    @staticmethod
+    def display_name():
         return "Harmonic Energy (Stark, Plumbley)"
+
+    @staticmethod
+    def method_number():
+        return 2
 
     def compute_pitches(self):
         # first C = C3 aka 130.81 Hz
