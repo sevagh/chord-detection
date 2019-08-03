@@ -91,45 +91,56 @@ class MultipitchIterativeF0(Multipitch):
                 running_sum += numpy.abs(numpy.fft.fft(Yct_)) ** self.power
             Ut[frame] = running_sum
 
+            if frame == display_plot_frame:
+                _display_plots(self.clip_name, self.frame_size, self.x, self.channels, ycn, Ut[frame])
+
         # periodicity estimate - iterative f0 cancellation/tau/salience loop
 
         return None
 
 
-def _display_plots(self):
+def _display_plots(clip_name, frame_size, x, channels, ytc, Ut):
     fig1, (ax1, ax2) = plt.subplots(2, 1)
 
-    ax1.set_title("x[n] - {0}".format(self.clip_name))
+    ax1.set_title(r"x[n], $y_c$[n], normalized - {0}".format(clip_name))
     ax1.set_xlabel("n (samples)")
     ax1.set_ylabel("amplitude")
     ax1.plot(
-        numpy.arange(self.frame_size),
-        self.x[: self.frame_size],
+        numpy.arange(frame_size),
+        x[: frame_size]/numpy.max(x),
         "b",
         alpha=0.75,
         linestyle="--",
         label="x[n]",
     )
 
-    ax1.grid()
-    ax1.legend(loc="upper right")
-
-    ax2.set_title(r"$y_c$[n], auditory filterbank")
-    ax2.set_xlabel("n (samples)")
-    ax2.set_ylabel("amplitude")
-
     for i, x in enumerate(
-        [random.randrange(0, len(self.channels)) for _ in range(10)]
+        [random.randrange(0, len(channels)) for _ in range(6)]
     ):
-        ax2.plot(
-            numpy.arange(self.frame_size),
-            self.ytc[0][x][: self.frame_size],
+        ax1.plot(
+            numpy.arange(frame_size),
+            ytc[x][: frame_size]/numpy.max(ytc[x][: frame_size]),
             color="C{0}".format(i),
             linestyle="--",
             alpha=0.5,
-            label="{0}Hz".format(round(self.channels[x], 2)),
+            label=r"$y_c$[n], $f_c$ = {0}".format(round(channels[x], 2)),
         )
     i += 1
+
+    ax1.grid()
+    ax1.legend(loc="upper right")
+
+    ax2.set_title("Ut")
+    ax2.set_xlabel("fft bin")
+    ax2.set_ylabel("amplitude")
+    ax2.plot(
+        numpy.arange(frame_size),
+        Ut[: frame_size],
+        "b",
+        alpha=0.75,
+        linestyle="--",
+        label="Ut",
+    )
 
     ax2.grid()
     ax2.legend(loc="upper right")
@@ -175,13 +186,13 @@ def _bandwise_summary_spectrum(
     if not k:
         k = 0.67
 
-    shape = int((x_channels[0].shape[0]-1)/2)
+    shape = x_channels[0].shape[0]
     running_sum = numpy.zeros(shape)
 
     for xc in x_channels:
-        running_sum += numpy.abs(numpy.fft.fft(xc)[:shape]) ** k
+        running_sum += numpy.abs(numpy.fft.fft(xc)) ** k
 
-    return running_sum
+    return running_sum[:int((shape-1)/2)]
 
 
 def _weight(tau_low, tau_up, fs, epsilon1, epsilon2, m):

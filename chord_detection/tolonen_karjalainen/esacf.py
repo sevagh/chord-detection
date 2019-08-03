@@ -92,14 +92,14 @@ def _sacf(x_channels: typing.List[numpy.ndarray], k=None) -> numpy.ndarray:
     if not k:
         k = 0.67
 
-    shape = int((x_channels[0].shape[0] - 1) / 2)
+    shape = x_channels[0].shape[0]
 
     running_sum = numpy.zeros(shape)
 
     for xc in x_channels:
-        running_sum += numpy.abs(numpy.fft.fft(xc)[:shape]) ** k
+        running_sum += numpy.abs(numpy.fft.fft(xc)) ** k
 
-    return numpy.real(numpy.fft.ifft(running_sum))
+    return numpy.real(numpy.fft.ifft(running_sum))[:int((shape-1)/2)]
 
 
 def _esacf(

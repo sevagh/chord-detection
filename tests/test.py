@@ -7,7 +7,7 @@ from chord_detection import (
     MultipitchHarmonicEnergy,
     MultipitchPrimeMultiF0,
 )
-from chord_detection.notes import gen_octave
+from chord_detection.music.notes import gen_octave
 import soundfile
 from tempfile import TemporaryDirectory
 
@@ -31,7 +31,7 @@ class TestChordDetection(unittest.TestCase):
                 MultipitchPrimeMultiF0(test_clip),
             ]
             for c in compute_objs:
-                ret = c.compute_pitches()
+                ret = c.compute_pitches(display_plot_frame=1)
                 print(
                     "{0}\n{1}\n{2} expected\n{3} actual\n".format(
                         c.display_name(), test_clip, expected_result, ret
