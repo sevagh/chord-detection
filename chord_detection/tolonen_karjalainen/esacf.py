@@ -219,6 +219,6 @@ def _display_plots(
         ax2.text(x, y, text)
 
     ax2.grid()
-    ax2.legend(loc="lower left")
+    ax2.legend(loc="upper right")
 
     plt.show()
