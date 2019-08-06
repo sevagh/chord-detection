@@ -44,7 +44,7 @@ class Chromagram(Sequence):
         return self
 
     def key(self):
-        return _detect_key(numpy.asarray([v for v in self.c.values()]))
+        return detect_key(numpy.asarray([v for v in self.c.values()]))
 
     def _pack(self):
         nc = _normalize(self.c)
@@ -73,7 +73,18 @@ def _normalize(c: OrderedDict):
     return c_
 
 
-def _detect_key(X):
+"""
+attribution:
+    https://gist.github.com/bmcfee/1f66825cef2eb34c839b42dddbad49fd
+    https://github.com/bmcfee
+"""
+
+
+def detect_key(X):
+    if X.shape[0] != 12:
+        raise ValueError(
+            "input must be a chroma vector i.e. a numpy ndarray of shape (12,)"
+        )
     # key_names = "A", "A#", "B", "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#"
     X = scipy.stats.zscore(X)
 
