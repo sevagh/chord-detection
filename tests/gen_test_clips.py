@@ -4,7 +4,6 @@ import unittest
 import numpy
 import os
 import librosa
-from chord_detection.notes import gen_octave
 import soundfile
 import sys
 from tempfile import TemporaryDirectory

@@ -10,7 +10,7 @@ The expected notes of a C major chord are C E G, so the expected answer should r
 
 ```
 reference: 100010010000
-computed:  900003001000
+computed:  900003001000, key: Cmaj
 ```
 
 ![esacf](.github/piano_c_1.png)
@@ -23,7 +23,7 @@ _V. Zenz and A. Rauber, "Automatic Chord Detection Incorporating Beat and Key De
 
 ```
 reference: 100010010000
-computed:  921111111111
+computed:  921111111111, key: Cmin
 ```
 
 ![harmeng](.github/piano_c_2.png)
@@ -46,7 +46,7 @@ _Klapuri, Anssi. "Multiple Fundamental Frequency Estimation by Summing Harmonic 
 
 ```
 reference: 100010010000
-computed:  951000000002
+computed:  951000000002, key: Cmin
 ```
 
 ![primemultif0](.github/piano_c_4.png)

@@ -6,7 +6,6 @@ import librosa
 import matplotlib.pyplot as plt
 from ..multipitch import Multipitch
 from ..chromagram import Chromagram
-from ..music.notes import freq_to_note, gen_octave, NOTE_NAMES
 from ..dsp.frame import frame_cutter
 from collections import OrderedDict
 
@@ -30,8 +29,8 @@ class MultipitchHarmonicEnergy(Multipitch):
         return 2
 
     def compute_pitches(self, display_plot_frame=-1):
-        # first C = C3 aka 130.81 Hz
-        notes = list(gen_octave(130.81))
+        # first C = C3
+        notes = librosa.cqt_frequencies(12, fmin=librosa.note_to_hz('C3'))
 
         divisor_ratio = (self.fs / 4.0) / self.frame_size
         self.dft_maxes = []
@@ -71,7 +70,7 @@ class MultipitchHarmonicEnergy(Multipitch):
 
             if frame == display_plot_frame:
                 _display_plots(self.clip_name, self.fs, self.frame_size, x_dft, self.x, x, self.dft_maxes)
-        return overall_chromagram.pack()
+        return overall_chromagram
 
 def _display_plots(clip_name, fs, frame_size, x_dft, x, x_frame, dft_maxes):
     pltlen = frame_size
@@ -106,7 +105,7 @@ def _display_plots(clip_name, fs, frame_size, x_dft, x, x_frame, dft_maxes):
         ax2.plot(mid, x_dft[:dftlen][mid], "go")
         ax2.plot(right, x_dft[:dftlen][right], color="purple", marker="x")
         pitch = fs / mid
-        note = freq_to_note(pitch)
+        note = librosa.hz_to_note(pitch, octave=False)
         pitch = round(pitch, 2)
 
         if (i % 17) == 0:

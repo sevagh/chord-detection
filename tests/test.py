@@ -7,7 +7,6 @@ from chord_detection import (
     MultipitchHarmonicEnergy,
     MultipitchPrimeMultiF0,
 )
-from chord_detection.music.notes import gen_octave
 import soundfile
 from tempfile import TemporaryDirectory
 

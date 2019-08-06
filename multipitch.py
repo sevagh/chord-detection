@@ -23,7 +23,11 @@ if __name__ == "__main__":
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
 
-    parser.add_argument("--key", help="estimate the key of input audio clip")
+    parser.add_argument(
+        "--key",
+        action="store_true",
+        help="estimate the key using the Krumhansl-Schmuckler key-finding algorithm",
+    )
     parser.add_argument(
         "--displayplots",
         type=int,
@@ -56,3 +60,5 @@ if __name__ == "__main__":
         )
         chromagram = compute_obj.compute_pitches(args.displayplots)
         print(chromagram)
+        if args.key:
+            print(chromagram.key())

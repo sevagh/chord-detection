@@ -8,7 +8,6 @@ import matplotlib.pyplot as plt
 from ..multipitch import Multipitch
 from ..chromagram import Chromagram
 from ..dsp.wfir import wfir
-from ..music.notes import freq_to_note, NOTE_NAMES
 from ..dsp.frame import frame_cutter
 from collections import OrderedDict
 
@@ -64,8 +63,11 @@ class MultipitchESACF(Multipitch):
             chromagram = Chromagram()
             for i, tau in enumerate(peak_indices_interp):
                 pitch = self.fs / tau
-                note = freq_to_note(pitch)
-                chromagram[note] += x_esacf[peak_indices[i]]
+                try:
+                    note = librosa.hz_to_note(pitch, octave=False)
+                    chromagram[note] += x_esacf[peak_indices[i]]
+                except ValueError:
+                    continue
             overall_chromagram += chromagram
 
             if frame == display_plot_frame:
@@ -84,7 +86,7 @@ class MultipitchESACF(Multipitch):
                     peak_indices_interp,
                 )
 
-        return overall_chromagram.pack()
+        return overall_chromagram
 
 
 def _sacf(x_channels: typing.List[numpy.ndarray], k=None) -> numpy.ndarray:
@@ -212,7 +214,7 @@ def _display_plots(
     scatter_peaks = esacf_norm[peak_indices]
     for i, ind in enumerate(peak_indices_interp):
         pitch = round(fs / ind, 2)
-        text = "{0}, {1}".format(pitch, freq_to_note(pitch))
+        text = "{0}, {1}".format(pitch, librosa.hz_to_note(pitch, octave=False))
         x = peak_indices_interp[i]
         y = scatter_peaks[i]
         ax2.plot(x, y, "rx")

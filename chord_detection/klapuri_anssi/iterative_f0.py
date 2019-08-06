@@ -11,7 +11,6 @@ import matplotlib.pyplot as plt
 from numba import njit, jit
 from ..multipitch import Multipitch
 from ..chromagram import Chromagram
-from ..music.notes import freq_to_note, gen_octave, NOTE_NAMES
 from ..dsp.wfir import wfir
 from ..tolonen_karjalainen.esacf import lowpass_filter
 from ..dsp.frame import frame_cutter
@@ -96,7 +95,7 @@ class MultipitchIterativeF0(Multipitch):
 
         # periodicity estimate - iterative f0 cancellation/tau/salience loop
 
-        return None
+        return Chromagram()
 
 
 def _display_plots(clip_name, frame_size, x, channels, ytc, Ut):

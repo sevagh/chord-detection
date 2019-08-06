@@ -11,7 +11,6 @@ import matplotlib.pyplot as plt
 from ..multipitch import Multipitch
 from ..chromagram import Chromagram
 from ..dsp.wfir import wfir
-from ..music.notes import freq_to_note, gen_octave, NOTE_NAMES
 from ..dsp.frame import frame_cutter
 from collections import OrderedDict
 
@@ -42,8 +41,8 @@ class MultipitchPrimeMultiF0(Multipitch):
     def compute_pitches(self, display_plot_frame=-1):
         overall_chromagram = Chromagram()
 
-        # first C = C3 aka 130.81 Hz
-        notes = list(gen_octave(130.81))
+        # first C = C3
+        notes = librosa.cqt_frequencies(12, fmin=librosa.note_to_hz('C3'))
 
         self.specgram_to_plot = []
 
@@ -68,10 +67,10 @@ class MultipitchPrimeMultiF0(Multipitch):
                             max_freq_idx = s.argmax(axis=0)
                             max_f = f[max_freq_idx]
                             try:
-                                note = freq_to_note(max_f)
+                                note = librosa.hz_to_note(max_f, octave=False)
                                 chromagram[note] += s[max_freq_idx]
                                 might_append_2.append((max_freq_idx, max_f, note))
-                            except ValueError:
+                            except (ValueError, OverflowError):
                                 continue
                             eliminated = []
                             for harmonic_index_multiple in range(
@@ -89,7 +88,7 @@ class MultipitchPrimeMultiF0(Multipitch):
 
                     overall_chromagram += chromagram
 
-        return overall_chromagram.pack()
+        return overall_chromagram
 
 def _display_plots(clip_name, x, specgram_to_plot):
     fig1, (ax1, ax2) = plt.subplots(2, 1)
