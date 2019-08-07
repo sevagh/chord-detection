@@ -14,6 +14,7 @@ from ..chromagram import Chromagram
 from ..dsp.wfir import wfir
 from ..tolonen_karjalainen.esacf import lowpass_filter
 from ..dsp.frame import frame_cutter
+from .periodicity import IterativeF0PeriodicityAnalysis
 from collections import OrderedDict
 
 
@@ -48,6 +49,7 @@ class MultipitchIterativeF0(Multipitch):
         self.harmonic_multiples_elim = harmonic_multiples_elim
         self.M = M
         self.tau_prec = tau_prec
+        self.periodicity_estimator = IterativeF0PeriodicityAnalysis(self.fs, self.frame_size)
 
     @staticmethod
     def display_name():
@@ -95,7 +97,11 @@ class MultipitchIterativeF0(Multipitch):
 
         # periodicity estimate - iterative f0 cancellation/tau/salience loop
 
-        return Chromagram()
+        overall_chromagram = Chromagram()
+        for frame, Uk in enumerate(Ut):
+            overall_chromagram += self.periodicity_estimator.compute(Uk)
+
+        return overall_chromagram
 
 
 def _display_plots(clip_name, frame_size, x, channels, ytc, Ut):
