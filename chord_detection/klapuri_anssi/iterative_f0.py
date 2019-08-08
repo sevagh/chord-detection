@@ -27,13 +27,9 @@ class MultipitchIterativeF0(Multipitch):
         channels=70,
         zeta0=2.3,
         zeta1=0.39,
-        epsilon1=20,
-        epsilon2=320,
         peak_thresh=0.5,
         peak_min_dist=10,
         harmonic_multiples_elim=5,
-        M=20,
-        tau_prec=1,
     ):
         super().__init__(audio_path)
         self.frame_size = frame_size
@@ -42,13 +38,9 @@ class MultipitchIterativeF0(Multipitch):
         self.channels = [
             229 * (10 ** ((zeta1 * c + zeta0) / 21.4) - 1) for c in range(channels)
         ]
-        self.epsilon1 = epsilon1
-        self.epsilon2 = epsilon2
         self.peak_thresh = peak_thresh
         self.peak_min_dist = peak_min_dist
         self.harmonic_multiples_elim = harmonic_multiples_elim
-        self.M = M
-        self.tau_prec = tau_prec
         self.periodicity_estimator = IterativeF0PeriodicityAnalysis(self.fs, self.frame_size)
 
     @staticmethod
@@ -92,19 +84,19 @@ class MultipitchIterativeF0(Multipitch):
                 running_sum += numpy.abs(numpy.fft.fft(Yct_)) ** self.power
             Ut[frame] = running_sum
 
-            if frame == display_plot_frame:
-                _display_plots(self.clip_name, self.frame_size, self.x, self.channels, ycn, Ut[frame])
-
-        # periodicity estimate - iterative f0 cancellation/tau/salience loop
-
         overall_chromagram = Chromagram()
+        # periodicity estimate - iterative f0 cancellation/tau/salience loop
         for frame, Uk in enumerate(Ut):
-            overall_chromagram += self.periodicity_estimator.compute(Uk)
+            frame_chromagram, salience_plots = self.periodicity_estimator.compute(Uk)
+            overall_chromagram += frame_chromagram
+
+            if frame == display_plot_frame:
+                _display_plots(self.clip_name, self.fs, self.frame_size, self.x, self.channels, ycn, Ut[frame], salience_plots)
 
         return overall_chromagram
 
 
-def _display_plots(clip_name, frame_size, x, channels, ytc, Ut):
+def _display_plots(clip_name, fs, frame_size, x, channels, ytc, Ut, splots):
     fig1, (ax1, ax2) = plt.subplots(2, 1)
 
     ax1.set_title(r"x[n], $y_c$[n], normalized - {0}".format(clip_name))
@@ -135,16 +127,39 @@ def _display_plots(clip_name, frame_size, x, channels, ytc, Ut):
     ax1.grid()
     ax1.legend(loc="upper right")
 
-    ax2.set_title("Ut")
+    ax2.set_title("Ut, bandwise summary spectrum")
     ax2.set_xlabel("fft bin")
     ax2.set_ylabel("amplitude")
     ax2.plot(
-        numpy.arange(frame_size),
-        Ut[: frame_size],
+        numpy.arange(frame_size/2-1024),
+        Ut[1024 : int(frame_size/2)],
         "b",
         alpha=0.75,
         linestyle="--",
         label="Ut",
+    )
+
+    max_ut = numpy.amax(Ut[1024 : int(frame_size/2)])
+
+    (saliences, periods) = splots
+
+    tau = int(1/periods[0])
+
+    ax2.plot(
+            tau,
+            max_ut/2,
+            'rx',
+            label=r'$s(\hat{\tau})$ = ' + str(round(saliences[0], 2))
+        )
+
+    pitch = fs / periods[0]
+    note = librosa.hz_to_note(pitch, octave=False)
+    pitch = round(pitch, 2)
+
+    ax2.text(
+            tau,
+            1.1*(max_ut/2),
+            '{0}, {1}'.format(pitch, note)
     )
 
     ax2.grid()
@@ -198,80 +213,3 @@ def _bandwise_summary_spectrum(
         running_sum += numpy.abs(numpy.fft.fft(xc)) ** k
 
     return running_sum[:int((shape-1)/2)]
-
-
-def _weight(tau_low, tau_up, fs, epsilon1, epsilon2, m):
-    return (fs / tau_low + epsilon1) / (m * fs / tau_up + epsilon2)
-
-
-@njit
-def _max_Ut(Ut, tau, delta_tau, m, K):
-    Ut_max = 0.0
-    for tau_adjusted in numpy.linspace(tau + delta_tau / 2, tau - delta_tau / 2):
-        if tau_adjusted == 0.0:
-            continue
-        k_tau_m = int(round(m * K / tau_adjusted))
-        if 0 <= k_tau_m < Ut.shape[0]:
-            Ut_max = max(Ut[k_tau_m], Ut_max)
-    return Ut_max
-
-
-def smax(q: float, Ur: numpy.ndarray) -> float:
-    tor = 0.5*0.2
-    return tor
-''' 
-float PeriodicityAnalysis::smax(int q, float * Ur) {
-    
-    float tor = 0.5f*(torlow_[q] + torup_[q]);
-    float deltator = torup_[q] - torlow_[q];
-    
-    //2745.4833984375 = 10.7666015625*255 = (44100.0/4096) * 255
-    
-    
-    int topm = tor*2745.4833984375; //2745.4833984375/(1.0/tor)
-    
-    if(topm>20) topm = 20; 
-    
-    //break early if go outside first 256 bins (later may allow use of wider band mainFFT for higher k ignoring band wise channel data? 
-    
-    float salience = 0.0f; 
-    float srovertor = g_samplingrate/torup_[q];  //g_samplingrate/tor; 
-    
-    //float K = 4096.0/g_samplingrate; 
-    
-    for (int m=1; m<topm; ++m) {
-        
-        int lowk = m*K_/(tor+0.5*deltator) +0.5f; //dd 0.5 since rounding to nearest integer
-        int highk = m*K_/(tor-0.5*deltator) + 0.5f;
-        
-        //indexing safety check
-        if((lowk < UKSIZE) && (highk < UKSIZE)) { 
-            
-            float maxu = Ur[lowk];
-            
-            for(int i=lowk+1; i<highk; ++i) {
-                
-                float nowu = Ur[i];
-                
-                if(nowu>maxu)
-                    maxu = nowu; 
-                
-            }
-            
-            float w = 1.0/(m*srovertor + 320.0f);
-            
-            salience += w* maxu; 
-            
-        }
-        
-    }
-    
-    //was srovertor
-    salience *= g_samplingrate/torlow_[q] + 5.f; //numerator multiplier from w doesn't depend on m and taken outside 
-    
-    //smax_[q] = salience; 
-    
-    return salience; 
-    
-}
-'''

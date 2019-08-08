@@ -8,7 +8,7 @@ _HAMMINGWINDOWNORM = [0.0011244659258033, 0.11559343551383, 0.42817348241183, 0.
 
 
 '''
-thank god for https://github.com/BansMarbol/PolyPitch
+borrowed heavily from https://github.com/BansMarbol/PolyPitch
 '''
 
 class IterativeF0PeriodicityAnalysis():
@@ -18,9 +18,13 @@ class IterativeF0PeriodicityAnalysis():
             window_size: int,
             max_voices=4,
             tau_min=1.0/2100.0,
-            tau_max=1.0/65.0,
+            tau_max=1.0/40.0,
             tau_prec=0.0000001,
-            max_q=50,
+            Q=20,
+            M=20,
+            epsilon1=20,
+            epsilon2=320,
+            gamma=0.66,
         ):
         self.fs = fs
         self.window_size = window_size
@@ -29,18 +33,21 @@ class IterativeF0PeriodicityAnalysis():
         self.tau_min = tau_min
         self.tau_max = tau_max
         self.tau_prec = tau_prec
-        self.max_q = max_q
+        self.Q = Q
+        self.M = M
+        self.epsilon1 = epsilon1
+        self.epsilon2 = epsilon2
+        self.gamma = gamma # polyphony estimate
 
         self.voicesaliences = numpy.zeros(self.max_voices)
         self.voiceperiods = numpy.zeros(self.max_voices)
-        self.smax = numpy.zeros(self.max_q)
-        self.tau_low = numpy.zeros(self.max_q)
-        self.tau_up = numpy.zeros(self.max_q)
+        self.smax = numpy.zeros(self.Q)
+        self.tau_low = numpy.zeros(self.Q)
+        self.tau_up = numpy.zeros(self.Q)
 
     def compute(self, Uk: numpy.ndarray) -> Chromagram:
         num_voices_detected = 0
         cancellation_weight = 1.0
-        polyphonyestimategamma = 0.66
 
         Ud = numpy.zeros(Uk.shape[0])
         Ur = numpy.array(Uk)
@@ -62,7 +69,7 @@ class IterativeF0PeriodicityAnalysis():
             num_voices_detected += 1
             mixturescore += bestsalience
 
-            testquantity = mixturescore/(math.pow(num_voices_detected, polyphonyestimategamma))
+            testquantity = mixturescore/(math.pow(num_voices_detected, self.gamma))
 
             if num_voices_detected >= self.max_voices or testquantity <= prevmixturescore:
                 keepgoing = False
@@ -72,15 +79,15 @@ class IterativeF0PeriodicityAnalysis():
                 topm = int(tau*(self.fs/self.window_size)*Uk.shape[0])
 
                 srovertau = self.fs/tau
-                weight = srovertau + 5
+                weight = srovertau + self.epsilon1
                 for m in range(1, topm):
                     partialK = m*self.K/tau + 0.5
                     if partialK <= Uk.shape[0]:
                         Urweight = Ur[int(partialK)]
-                        Urweight *= weight/(m*srovertau + 320.0)
+                        Urweight *= weight/(m*srovertau + self.epsilon2)
 
                         lowk = max(int(partialK-4), 0)
-                        highk = min(int(partialK+4), 255)
+                        highk = min(int(partialK+4), Uk.shape[0])
 
                         for j in range(lowk, highk+1):
                             hammingindexnow = int(j - partialK + 4)
@@ -96,10 +103,13 @@ class IterativeF0PeriodicityAnalysis():
 
         c = Chromagram()
         for i in range(self.voiceperiods.shape[0]):
-            note = librosa.hz_to_note(1.0/self.voiceperiods[i], octave=False)
-            c[note] += self.voicesaliences[i]
+            try:
+                note = librosa.hz_to_note(self.fs/self.voiceperiods[i], octave=False)
+                c[note] += self.voicesaliences[i]
+            except OverflowError:
+                continue
 
-        return c
+        return c, (self.voicesaliences.copy(), self.voiceperiods.copy())
 
     def min_search(self, Ur: numpy.ndarray) -> float:
         q = 0
@@ -109,7 +119,7 @@ class IterativeF0PeriodicityAnalysis():
 
         qbest = 0
 
-        while (self.tau_up[qbest] - self.tau_low[qbest]) > self.tau_prec and q < self.max_q-1:
+        while (self.tau_up[qbest] - self.tau_low[qbest]) > self.tau_prec and q < self.Q-1:
             q += 1
             self.tau_low[q] = (self.tau_low[qbest] + self.tau_up[qbest])*0.5
             self.tau_up[q] = self.tau_up[qbest]
@@ -133,25 +143,21 @@ class IterativeF0PeriodicityAnalysis():
 
     def smax_fn(self, q: int, Ur: numpy.ndarray) -> float:
         tau = 0.5*(self.tau_low[q] + self.tau_up[q])
-        deltator = self.tau_up[q] - self.tau_low[q]
-
-        topm = int(tau*(self.fs/self.window_size)*Ur.shape[0])
-        if topm > 20:
-            topm = 20
+        deltatau = self.tau_up[q] - self.tau_low[q]
 
         salience = 0.0
         srovertau = self.fs/self.tau_up[q]
 
-        for m in range(1, topm):
-            lowk = int(m*self.K*(tau+0.5*deltator) + 0.5)
-            highk = int(m*self.K/(tau-0.5*deltator) + 0.5)
+        weight_numerator = self.fs/self.tau_low[q] + self.epsilon1
+        def weight_denominator(m: int):
+            return (m*self.fs/self.tau_up[q] + self.epsilon2)
 
-            if lowk < Ur.shape[0] and highk < Ur.shape[0]:
-                maxu = Ur[lowk]
-                for i in range(lowk+1, highk):
-                    maxu = max(Ur[i], maxu)
-                w = 1.0/(m*srovertau + 320.0)
-                salience += w*maxu
+        for m in range(1, self.M):
+            lowk = int(m*self.K/(tau+0.5*deltatau) + 0.5)
+            highk = int(m*self.K/(tau-0.5*deltatau) + 0.5)
 
-        salience *= self.fs/self.tau_low[q] + 5
+            Umax = numpy.amax(Ur[lowk:highk+1])
+            salience += weight_denominator(m)*Umax
+
+        salience *= weight_numerator
         return salience
