@@ -2,14 +2,14 @@ This repository is an MIT-licensed collection of multipitch/polyphonic instrumen
 
 ### Methods
 
-Results of a piano C major chord. The outputs are the summed chromagrams across all the frames, normalized to 9 (the biggest single-digit number), in a 12-digit string of ints representing the chromatic scale, aka `C-C#-D-D#-E-F-F#-G-G#-A-A#-B`.
+The results displayed come from a wav clip of a piano C major chord. The outputs are the summed chromagrams across all the frames, normalized to 9 (the biggest single-digit number), in a 12-digit chroma vector string.
 
-The expected notes of a C major chord are C E G, so the expected answer should resemble `100010010000`.
+The expected notes of a C major chord are C E G, so the expected answer should resemble `C000E00G0000`, where `C > E, C > G`. The values of C, E, G are specific to the method being used, but it's some representation of the energy of the detected pitch, e.g. spectral energy, summed FFT.
 
 #### ESACF (Tolonen, Karjalainen)
 
 ```
-reference: 100010010000
+reference: C000E00G0000
 computed:  900003001000, key: Cmaj
 ```
 
@@ -22,7 +22,7 @@ _V. Zenz and A. Rauber, "Automatic Chord Detection Incorporating Beat and Key De
 #### Harmonic Energy (Stark, Plumbley)
 
 ```
-reference: 100010010000
+reference: C000E00G0000
 computed:  921111111111, key: Cmin
 ```
 
@@ -33,7 +33,7 @@ _M Stark, Adam and Plumbley, Mark., "Real-Time Chord Recognition for Live Perfor
 #### Iterative F0 (Klapuri, Anssi)
 
 ```
-reference: 100010010000
+reference: C000E00G0000
 computed:  900301000000, key: Cmin
 ```
 
@@ -46,7 +46,7 @@ _Klapuri, Anssi. "Multiple Fundamental Frequency Estimation by Summing Harmonic 
 #### Prime-multiF0 (Camacho, Kaver-Oreamuno)
 
 ```
-reference: 100010010000
+reference: C000E00G0000
 computed:  951000000002, key: Cmin
 ```
 
