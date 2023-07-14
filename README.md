@@ -6,7 +6,7 @@ This repository is an MIT-licensed collection of multipitch/polyphonic instrumen
 
 Pip install it from the git url: 
 ```
-$ pip install git+https://github.com/sevagh/chord_detection.git
+$ pip install git+https://github.com/sevagh/chord-detection.git
 ```
 
 This installs the library `chord_detection` and the command-line tool `chord-detect`:
