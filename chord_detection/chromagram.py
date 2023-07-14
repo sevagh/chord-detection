@@ -18,6 +18,7 @@ class Chromagram(Sequence):
 
     def __getitem__(self, i):
         if type(i) == str:
+            i = i.replace('♯', '#') # librosa-isms...
             return self.c[i]
         elif type(i) == int:
             return self.c[_note_names[i]]

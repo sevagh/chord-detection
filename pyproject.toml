@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "chord-detection"
+version = "0.0.1"
+description = "DSP algorithms for chord detection + key estimation"
+readme = { file = "README.md", content-type = "text/markdown" }
+authors = [
+    { name = "Sevag Hanssian (sevagh@protonmail.com)" },
+]
+license = { text = "MIT" }
+requires-python = ">=3"
+dependencies = [
+    "scipy",
+    "numpy",
+    "matplotlib",
+    "librosa",
+    "soundfile",
+    "peakutils",
+]
+
+[project.scripts]
+chord-detect = "chord_detection.chord_detect:main_cli"

@@ -1,15 +1,14 @@
-from chord_detection import (
-    MultipitchESACF,
-    MultipitchHarmonicEnergy,
-    MultipitchIterativeF0,
-    MultipitchPrimeMultiF0,
-    METHODS,
-)
+from chord_detection.esacf import MultipitchESACF
+from chord_detection.harmonic_energy import MultipitchHarmonicEnergy
+from chord_detection.iterative_f0 import MultipitchIterativeF0
+from chord_detection.prime_multif0 import MultipitchPrimeMultiF0
+from chord_detection.multipitch import METHODS
+
 import sys
 import argparse
 
 
-if __name__ == "__main__":
+def main_cli():
     method_nums = [k for k in METHODS.keys()]
     method_nums_help_string = "-1 = all, "
     for k in METHODS.keys():
@@ -62,3 +61,7 @@ if __name__ == "__main__":
         print(chromagram)
         if args.key:
             print(chromagram.key())
+
+
+if __name__ == "__main__":
+    main_cli()

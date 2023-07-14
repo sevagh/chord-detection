@@ -1,4 +1,4 @@
-from ..chromagram import Chromagram
+from chord_detection.chromagram import Chromagram
 import numpy
 import math
 import librosa

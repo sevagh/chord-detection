@@ -14,8 +14,8 @@ class Multipitch(object):
         method_num = cls.method_number()
         if method_num in METHODS.keys():
             raise ValueError(
-                "Method number {0} already registered as {1}".format(
-                    method_num, METHODS[method_num]
+                "Method number {0} already registered as {1} in {2}".format(
+                    method_num, METHODS[method_num], METHODS
                 )
             )
         METHODS[cls.method_number()] = cls

@@ -4,9 +4,9 @@ import scipy
 import scipy.signal
 import librosa
 import matplotlib.pyplot as plt
-from ..multipitch import Multipitch
-from ..chromagram import Chromagram
-from ..dsp.frame import frame_cutter
+from chord_detection.multipitch import Multipitch
+from chord_detection.chromagram import Chromagram
+from chord_detection.dsp.frame import frame_cutter
 from collections import OrderedDict
 
 

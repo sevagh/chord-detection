@@ -8,10 +8,10 @@ import typing
 import peakutils
 from matplotlib import mlab
 import matplotlib.pyplot as plt
-from ..multipitch import Multipitch
-from ..chromagram import Chromagram
-from ..dsp.wfir import wfir
-from ..dsp.frame import frame_cutter
+from chord_detection.multipitch import Multipitch
+from chord_detection.chromagram import Chromagram
+from chord_detection.dsp.wfir import wfir
+from chord_detection.dsp.frame import frame_cutter
 from collections import OrderedDict
 
 

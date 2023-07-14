@@ -1,7 +1,7 @@
-from .tolonen_karjalainen.esacf import MultipitchESACF
-from .stark_plumbley.harmonic_energy import MultipitchHarmonicEnergy
-from .klapuri_anssi.iterative_f0 import MultipitchIterativeF0
-from .camacho_kaver_oreamuno.prime_multif0 import MultipitchPrimeMultiF0
+from chord_detection.esacf import MultipitchESACF
+from chord_detection.harmonic_energy import MultipitchHarmonicEnergy
+from chord_detection.iterative_f0 import MultipitchIterativeF0
+from chord_detection.prime_multif0 import MultipitchPrimeMultiF0
 
-from .multipitch import METHODS
-from .chromagram import detect_key
+from chord_detection.multipitch import METHODS
+from chord_detection.chromagram import detect_key

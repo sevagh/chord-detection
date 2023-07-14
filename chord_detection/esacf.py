@@ -5,10 +5,11 @@ import librosa
 import typing
 import peakutils
 import matplotlib.pyplot as plt
-from ..multipitch import Multipitch
-from ..chromagram import Chromagram
-from ..dsp.wfir import wfir
-from ..dsp.frame import frame_cutter
+from chord_detection.multipitch import Multipitch
+from chord_detection.chromagram import Chromagram
+from chord_detection.dsp.wfir import wfir
+from chord_detection.dsp.frame import frame_cutter
+from chord_detection.dsp.lowpass import lowpass_filter
 from collections import OrderedDict
 
 
@@ -117,7 +118,7 @@ def _esacf(
 
     for timescale in range(2, n_peaks + 1):
         x2tmp = numpy.clip(x2tmp, 0, None)
-        x2stretched = librosa.effects.time_stretch(x2tmp, timescale).copy()
+        x2stretched = librosa.effects.time_stretch(x2tmp, rate=timescale).copy()
 
         x2stretched.resize(x2tmp.shape)
         if ret_plots:
@@ -130,19 +131,6 @@ def _esacf(
 
 def _highpass_filter(x: numpy.ndarray, fs: float) -> numpy.ndarray:
     b, a = scipy.signal.butter(2, [1000 / (fs / 2)], btype="high")
-    return scipy.signal.lfilter(b, a, x)
-
-
-"""
-Paper says:
-    The lowpass block also includes a highpass rolloff with 12 dB/octave below 70 Hz.
-
-    Still TODO?
-"""
-
-
-def lowpass_filter(x: numpy.ndarray, fs: float, band: float) -> numpy.ndarray:
-    b, a = scipy.signal.butter(2, [band / (fs / 2)], btype="low")
     return scipy.signal.lfilter(b, a, x)
 
 

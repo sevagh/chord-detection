@@ -1,12 +1,34 @@
+# chord-detection
+
 This repository is an MIT-licensed collection of multipitch/polyphonic instrument chord and key detection methods, implemented from academic papers using Python.
 
-### Methods
+## Usage
+
+Pip install it from the git url: 
+```
+$ pip install git+https://github.com/sevagh/chord_detection.git
+```
+
+This installs the library `chord_detection` and the command-line tool `chord-detect`:
+```
+$ chord-detect
+usage: chord-detection [-h] [--key] [--displayplots DISPLAYPLOTS] [--method METHOD] input_path
+chord-detection: error: the following arguments are required: input_path
+```
+
+Run tests:
+```
+$ python ./tests/gen_test_clips.py
+$ python -m unittest
+```
+
+## Methods
 
 The results displayed come from a wav clip of a piano C major chord. The outputs are the summed chromagrams across all the frames, normalized to 9 (the biggest single-digit number), in a 12-digit chroma vector string.
 
 The expected notes of a C major chord are C E G, so the expected answer should resemble `C000E00G0000`, where `C > E, C > G`. The values of C, E, G are specific to the method being used, but it's some representation of the energy of the detected pitch, e.g. spectral energy, summed FFT.
 
-#### ESACF (Tolonen, Karjalainen)
+### ESACF (Tolonen, Karjalainen)
 
 ```
 reference: C000E00G0000
@@ -19,7 +41,7 @@ _T. Tolonen and M. Karjalainen, "A computationally efficient multipitch analysis
 
 _V. Zenz and A. Rauber, "Automatic Chord Detection Incorporating Beat and Key Detection," 2007 IEEE International Conference on Signal Processing and Communications, Dubai, 2007, pp. 1175-1178._
 
-#### Harmonic Energy (Stark, Plumbley)
+### Harmonic Energy (Stark, Plumbley)
 
 ```
 reference: C000E00G0000
@@ -30,7 +52,7 @@ computed:  921111111111, key: Cmin
 
 _M Stark, Adam and Plumbley, Mark., "Real-Time Chord Recognition for Live Performance," in Proceedings of the 2009 International Computer Music Conference (ICMC 2009), Montreal, Canada, 16-21 August 2009._
 
-#### Iterative F0 (Klapuri, Anssi)
+### Iterative F0 (Klapuri, Anssi)
 
 ```
 reference: C000E00G0000
@@ -43,7 +65,7 @@ _Klapuri, Anssi, "Multipitch Analysis of Polyphonic Music and Speech Signals Usi
 
 _Klapuri, Anssi. "Multiple Fundamental Frequency Estimation by Summing Harmonic Amplitudes." ISMIR (2006)._
 
-#### Prime-multiF0 (Camacho, Kaver-Oreamuno)
+### Prime-multiF0 (Camacho, Kaver-Oreamuno)
 
 ```
 reference: C000E00G0000

@@ -9,12 +9,12 @@ import peakutils
 import librosa
 import matplotlib.pyplot as plt
 from numba import njit, jit
-from ..multipitch import Multipitch
-from ..chromagram import Chromagram
-from ..dsp.wfir import wfir
-from ..tolonen_karjalainen.esacf import lowpass_filter
-from ..dsp.frame import frame_cutter
-from .periodicity import IterativeF0PeriodicityAnalysis
+from chord_detection.multipitch import Multipitch
+from chord_detection.chromagram import Chromagram
+from chord_detection.dsp.wfir import wfir
+from chord_detection.dsp.frame import frame_cutter
+from chord_detection.dsp.lowpass import lowpass_filter
+from chord_detection.periodicity import IterativeF0PeriodicityAnalysis
 from collections import OrderedDict
 
 
